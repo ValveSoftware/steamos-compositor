@@ -52,14 +52,23 @@
 #include <GL/glx.h>
 #include "glext.h"
 
-void glXBindTexImageEXT (Display     *display, 
+void (*__pointer_to_glXBindTexImageEXT) (Display     *display, 
 						 GLXDrawable drawable, 
 						 int         buffer,
 						 const int   *attrib_list);
 
-void glXReleaseTexImageEXT (Display     *display, 
+void (*__pointer_to_glXReleaseTexImageEXT) (Display     *display, 
 							GLXDrawable drawable, 
 							int         buffer);
+
+PFNGLGENPATHSNVPROC 					__pointer_to_glGenPathsNV;
+PFNGLPATHGLYPHRANGENVPROC				__pointer_to_glPathGlyphRangeNV;
+PFNGLGETPATHMETRICRANGENVPROC			__pointer_to_glGetPathMetricRangeNV;
+PFNGLGETPATHSPACINGNVPROC 				__pointer_to_glGetPathSpacingNV;
+PFNGLSTENCILFILLPATHINSTANCEDNVPROC 	__pointer_to_glStencilFillPathInstancedNV;
+PFNGLSTENCILSTROKEPATHINSTANCEDNVPROC 	__pointer_to_glStencilStrokePathInstancedNV;
+PFNGLCOVERFILLPATHINSTANCEDNVPROC 		__pointer_to_glCoverFillPathInstancedNV;
+PFNGLCOVERSTROKEPATHINSTANCEDNVPROC 	__pointer_to_glCoverStrokePathInstancedNV;
 
 typedef struct _ignore {
 	struct _ignore	*next;
@@ -190,30 +199,28 @@ float			currentFrameRate;
 static void
 init_text_rendering(void)
 {
-#if 0
-	textPathObjects = glGenPathsNV(256);
+	textPathObjects = __pointer_to_glGenPathsNV(256);
 
-	glPathGlyphRangeNV(	textPathObjects,
-						GL_STANDARD_FONT_NAME_NV, "Sans", GL_BOLD_BIT_NV,
-						0, 256, GL_USE_MISSING_GLYPH_NV, ~0, 30);
+	__pointer_to_glPathGlyphRangeNV(textPathObjects,
+									GL_STANDARD_FONT_NAME_NV, "Sans", GL_BOLD_BIT_NV,
+									0, 256, GL_USE_MISSING_GLYPH_NV, ~0, 30);
 	
 	/* Query font and glyph metrics. */
 	GLfloat font_data[4];
-	glGetPathMetricRangeNV(	GL_FONT_Y_MIN_BOUNDS_BIT_NV |
-							GL_FONT_Y_MAX_BOUNDS_BIT_NV |
-							GL_FONT_UNDERLINE_POSITION_BIT_NV |
-							GL_FONT_UNDERLINE_THICKNESS_BIT_NV,
-							textPathObjects + ' ', 1, 4 * sizeof(GLfloat),
-							font_data);
+	__pointer_to_glGetPathMetricRangeNV(GL_FONT_Y_MIN_BOUNDS_BIT_NV |
+										GL_FONT_Y_MAX_BOUNDS_BIT_NV |
+										GL_FONT_UNDERLINE_POSITION_BIT_NV |
+										GL_FONT_UNDERLINE_THICKNESS_BIT_NV,
+										textPathObjects + ' ', 1, 4 * sizeof(GLfloat),
+										font_data);
 	
 	textYMin = font_data[0];
 	textYMax = font_data[1];
 
-	glGetPathMetricRangeNV(	GL_GLYPH_HORIZONTAL_BEARING_ADVANCE_BIT_NV,
-							textPathObjects, 256,
-							0,
-							&textXAdvance[0]);
-#endif
+	__pointer_to_glGetPathMetricRangeNV(GL_GLYPH_HORIZONTAL_BEARING_ADVANCE_BIT_NV,
+										textPathObjects, 256,
+										0,
+										&textXAdvance[0]);
 }
 
 static XserverRegion
@@ -410,7 +417,7 @@ teardown_win_resources (Display *dpy, win *w)
 	if (w->pixmap)
 	{
 		glBindTexture (GL_TEXTURE_2D, w->texName);
-		glXReleaseTexImageEXT (dpy, w->glxPixmap, GLX_FRONT_LEFT_EXT);
+		__pointer_to_glXReleaseTexImageEXT (dpy, w->glxPixmap, GLX_FRONT_LEFT_EXT);
 		glBindTexture (GL_TEXTURE_2D, 0);
 		w->texName = 0;
 		glXDestroyPixmap(dpy, w->glxPixmap);
@@ -433,7 +440,7 @@ ensure_win_resources (Display *dpy, win *w)
 		w->glxPixmap = glXCreatePixmap (dpy, w->fbConfig, w->pixmap, w->isOverlay ? tfpAttribsRGBA : tfpAttribs);
 		
 		glBindTexture (GL_TEXTURE_2D, w->texName);
-		glXBindTexImageEXT (dpy, w->glxPixmap, GLX_FRONT_LEFT_EXT, NULL);
+		__pointer_to_glXBindTexImageEXT (dpy, w->glxPixmap, GLX_FRONT_LEFT_EXT, NULL);
 		
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -638,18 +645,17 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 static void
 paint_message (const char *message, int Y, float r, float g, float b)
 {
-#if 0
 	int messageLength = strlen(message);
 	GLfloat horizontalOffsets[messageLength + 1];
 	
 	horizontalOffsets[0] = 0;
 
-	glGetPathSpacingNV(	GL_ACCUM_ADJACENT_PAIRS_NV,
-						(GLsizei)messageLength, GL_UNSIGNED_BYTE, message,
-						textPathObjects,
-						1.0, 1.0,
-						GL_TRANSLATE_X_NV,
-						&horizontalOffsets[1]);
+	__pointer_to_glGetPathSpacingNV(GL_ACCUM_ADJACENT_PAIRS_NV,
+									(GLsizei)messageLength, GL_UNSIGNED_BYTE, message,
+									textPathObjects,
+									1.0, 1.0,
+									GL_TRANSLATE_X_NV,
+									&horizontalOffsets[1]);
 
 	float messageWidth = horizontalOffsets[messageLength - 1] + textXAdvance[message[messageLength - 1]];
 	
@@ -663,31 +669,30 @@ paint_message (const char *message, int Y, float r, float g, float b)
 	glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
 
-	glStencilFillPathInstancedNV(	(GLsizei)messageLength,
+	__pointer_to_glStencilFillPathInstancedNV(	(GLsizei)messageLength,
 									GL_UNSIGNED_BYTE, message, textPathObjects,
 									GL_PATH_FILL_MODE_NV, ~0, /* Use all stencil bits */
 									GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
 	
 	glColor3f(r,g,b);
-	glCoverFillPathInstancedNV(	(GLsizei)messageLength,
-								GL_UNSIGNED_BYTE, message, textPathObjects,
-								GL_PATH_FILL_COVER_MODE_NV,
-								GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
+	__pointer_to_glCoverFillPathInstancedNV((GLsizei)messageLength,
+											GL_UNSIGNED_BYTE, message, textPathObjects,
+											GL_PATH_FILL_COVER_MODE_NV,
+											GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
 	
-	glStencilStrokePathInstancedNV(	(GLsizei)messageLength,
-									GL_UNSIGNED_BYTE, message, textPathObjects,
-									1, ~0, /* Use all stencil bits */
-									GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
+	__pointer_to_glStencilStrokePathInstancedNV((GLsizei)messageLength,
+												GL_UNSIGNED_BYTE, message, textPathObjects,
+												1, ~0, /* Use all stencil bits */
+												GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
 	glColor3f(0.0,0.0,0.0);
-	glCoverStrokePathInstancedNV(	(GLsizei)messageLength,
-									GL_UNSIGNED_BYTE, message, textPathObjects,
-									GL_PATH_STROKE_COVER_MODE_NV,
-									GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
+	__pointer_to_glCoverStrokePathInstancedNV((GLsizei)messageLength,
+												GL_UNSIGNED_BYTE, message, textPathObjects,
+												GL_PATH_STROKE_COVER_MODE_NV,
+												GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
 
 	glDisable(GL_STENCIL_TEST);
 	
 	glPopMatrix();
-#endif
 }
 
 static void
@@ -1685,10 +1690,36 @@ main (int argc, char **argv)
 		exit (1);
 	}
 	
+	__pointer_to_glXBindTexImageEXT = (void *)glXGetProcAddress("glXBindTexImageEXT");
+	__pointer_to_glXReleaseTexImageEXT = (void *)glXGetProcAddress("glXReleaseTexImageEXT");
+	
+	if (!__pointer_to_glXBindTexImageEXT || !__pointer_to_glXReleaseTexImageEXT)
+	{
+		fprintf (stderr, "Could not get GLX_EXT_texture_from_pixmap entrypoints!\n");
+		exit (1);
+	}
+	
+	if (!strstr(glGetString(GL_EXTENSIONS), "GL_NV_path_rendering"))
+	{
+		drawDebugInfo = False;
+	}
+	else
+	{
+		__pointer_to_glGenPathsNV = (PFNGLGENPATHSNVPROC) glXGetProcAddress("glGenPathsNV");
+		__pointer_to_glPathGlyphRangeNV = (PFNGLPATHGLYPHRANGENVPROC) glXGetProcAddress("glPathGlyphRangeNV");
+		__pointer_to_glGetPathMetricRangeNV = (PFNGLGETPATHMETRICRANGENVPROC) glXGetProcAddress("glGetPathMetricRangeNV");
+		__pointer_to_glGetPathSpacingNV = (PFNGLGETPATHSPACINGNVPROC) glXGetProcAddress("glGetPathSpacingNV");
+		__pointer_to_glStencilFillPathInstancedNV = (PFNGLSTENCILFILLPATHINSTANCEDNVPROC) glXGetProcAddress("glStencilFillPathInstancedNV");
+		__pointer_to_glStencilStrokePathInstancedNV = (PFNGLSTENCILSTROKEPATHINSTANCEDNVPROC) glXGetProcAddress("glStencilStrokePathInstancedNV");
+		__pointer_to_glCoverFillPathInstancedNV = (PFNGLCOVERFILLPATHINSTANCEDNVPROC) glXGetProcAddress("glCoverFillPathInstancedNV");
+		__pointer_to_glCoverStrokePathInstancedNV = (PFNGLCOVERSTROKEPATHINSTANCEDNVPROC) glXGetProcAddress("glCoverStrokePathInstancedNV");
+	}
+	
 	glEnable(GL_TEXTURE_2D);
 	glGenTextures(1, &cursorTextureName);
 	
-	init_text_rendering();
+	if (drawDebugInfo)
+		init_text_rendering();
 	
 	XFree(rootVisualInfo);
 
