@@ -89,6 +89,7 @@ typedef struct _win {
 	unsigned int requestedWidth;
 	unsigned int requestedHeight;
 	Bool nudged;
+	Bool ignoreOverrideRedirect;
 } win;
 
 typedef struct _conv {
@@ -124,6 +125,8 @@ static Window	unredirectedWindow;
 
 Bool			gameFocused;
 
+unsigned int 	gamesRunningCount;
+
 Bool			focusedWindowNeedsScale;
 float			cursorScaleRatio;
 int				cursorOffsetX, cursorOffsetY;
@@ -147,6 +150,7 @@ unsigned int	fadeOutStartTime;
 static Atom		steamAtom;
 static Atom		gameAtom;
 static Atom		overlayAtom;
+static Atom		gamesRunningAtom;
 static Atom		opacityAtom;
 static Atom		winTypeAtom;
 static Atom		winDesktopAtom;
@@ -163,10 +167,11 @@ static Atom		fullscreenAtom;
 GLXContext glContext;
 
 /* opacity property name; sometime soon I'll write up an EWMH spec for it */
-#define OPACITY_PROP	"_NET_WM_WINDOW_OPACITY"
-#define GAME_PROP		"STEAM_GAME"
-#define STEAM_PROP		"STEAM_BIGPICTURE"
-#define OVERLAY_PROP	"STEAM_OVERLAY"
+#define OPACITY_PROP		"_NET_WM_WINDOW_OPACITY"
+#define GAME_PROP			"STEAM_GAME"
+#define STEAM_PROP			"STEAM_BIGPICTURE"
+#define OVERLAY_PROP		"STEAM_OVERLAY"
+#define GAMES_RUNNING_PROP 	"STEAM_GAMES_RUNNING"
 
 #define TRANSLUCENT	0x00000000
 #define OPAQUE		0xffffffff
@@ -947,8 +952,9 @@ determine_and_apply_focus (Display *dpy)
 			focus = w;
 		}
 		
-		if (w->gameID && w->a.map_state == IsViewable && w->damage_sequence &&
-			(w->damage_sequence > maxDamageSequence || w->map_sequence > maxMapSequence))
+		if (w->gameID && w->a.map_state == IsViewable && 1 &&
+			(w->damage_sequence >= maxDamageSequence || w->map_sequence >= maxMapSequence) &&
+			(!w->a.override_redirect || w->ignoreOverrideRedirect))
 		{
 			focus = w;
 			gameFocused = True;
@@ -1008,7 +1014,11 @@ determine_and_apply_focus (Display *dpy)
 
 	setup_pointer_barriers(dpy);
 	
-	XRaiseWindow(dpy, focus->id);
+	if (gameFocused || !gamesRunningCount)
+	{
+		XRaiseWindow(dpy, focus->id);
+		XSetInputFocus(dpy, focus->id, RevertToNone, CurrentTime);
+	}
 	
 	if (!focus->nudged)
 	{
@@ -1029,7 +1039,6 @@ determine_and_apply_focus (Display *dpy)
 	{
 		XResizeWindow(dpy, focus->id, focus->requestedWidth, focus->requestedHeight);
 	}
-	XSetInputFocus(dpy, focus->id, RevertToNone, CurrentTime);
 }
 
 /* Get prop from window
@@ -1094,7 +1103,11 @@ get_size_hints(Display *dpy, win *w)
 				
 				XGetWindowAttributes (dpy, children[0], &attribs);
 				
-				if (attribs.override_redirect == False)
+				// If we have a unique children that isn't override-reidrect that is
+				// contained inside this fullscreen window, it's probably it.
+				if (attribs.override_redirect == False &&
+					attribs.width < w->a.width &&
+					attribs.height < w->a.height)
 				{
 					w->sizeHintsSpecified = True;
 					
@@ -1102,6 +1115,8 @@ get_size_hints(Display *dpy, win *w)
 					w->requestedHeight = attribs.height;
 					
 					XMoveWindow(dpy, children[0], 0, 0);
+					
+					w->ignoreOverrideRedirect = True;
 				}
 			}
 			
@@ -1209,7 +1224,8 @@ add_win (Display *dpy, Window id, Window prev)
 	{
 		new->damage = XDamageCreate (dpy, id, XDamageReportRawRectangles);
 		// Make sure the Windows we present have background = None for seamless unredirection
-		XSetWindowBackgroundPixmap (dpy, id, None);
+		if (allowUnredirection)
+			XSetWindowBackgroundPixmap (dpy, id, None);
 	}
 	new->opacity = TRANSLUCENT;
 	
@@ -1221,6 +1237,7 @@ add_win (Display *dpy, Window id, Window prev)
 	new->requestedWidth = 0;
 	new->requestedHeight = 0;
 	new->nudged = False;
+	new->ignoreOverrideRedirect = False;
 	
 	new->next = *p;
 	*p = new;
@@ -1614,6 +1631,7 @@ main (int argc, char **argv)
 	gameAtom = XInternAtom (dpy, GAME_PROP, False);
 	overlayAtom = XInternAtom (dpy, OVERLAY_PROP, False);
 	opacityAtom = XInternAtom (dpy, OPACITY_PROP, False);
+	gamesRunningAtom = XInternAtom (dpy, GAMES_RUNNING_PROP, False);
 	winTypeAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE", False);
 	winDesktopAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
 	winDockAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DOCK", False);
@@ -1698,6 +1716,8 @@ main (int argc, char **argv)
 	
 	XF86VidModeLockModeSwitch(dpy, scr, True);
 	
+	gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
+	
 	determine_and_apply_focus(dpy);
 	
 	for (;;)
@@ -1761,6 +1781,7 @@ main (int argc, char **argv)
 							if (w)
 							{
 								get_size_hints(dpy, w);
+								determine_and_apply_focus(dpy);
 							}
 						}
 					}
@@ -1833,6 +1854,12 @@ main (int argc, char **argv)
 							get_size_hints(dpy, w);
 							determine_and_apply_focus(dpy);
 						}
+					}
+					if (ev.xproperty.atom == gamesRunningAtom)
+					{
+						gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
+						
+						determine_and_apply_focus(dpy);
 					}
 					break;
 				case ClientMessage:
