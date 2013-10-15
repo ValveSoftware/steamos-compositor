@@ -88,7 +88,7 @@ typedef struct _win {
 	Damage		damage;
 	unsigned int	opacity;
 	unsigned long	map_sequence;
-	unsigned long	damage_sequence;    /* sequence when damage was created */
+	unsigned long	damage_sequence;
 	
 	Bool isSteam;
 	unsigned long long int gameID;
@@ -131,6 +131,9 @@ static Window	currentOverlayWindow;
 static Window	currentNotificationWindow;
 
 static Window	unredirectedWindow;
+
+static Window	ourWindow;
+static XEvent	exposeEvent;
 
 Bool			gameFocused;
 
@@ -228,6 +231,7 @@ win_extents (Display *dpy, win *w);
 
 static Bool		doRender = True;
 static Bool		drawDebugInfo = False;
+static Bool		debugEvents = False;
 static Bool		allowUnredirection = False;
 
 const int tfpAttribs[] = {
@@ -849,18 +853,24 @@ paint_all (Display *dpy)
 		}
 	}
 	
-	if (gameFocused && overlay && overlay->opacity)
+	if (gameFocused && overlay)
 	{
-		paint_window(dpy, overlay, True, False);
+		if (overlay->opacity)
+		{
+			paint_window(dpy, overlay, True, False);
+			canUnredirect = False;
+		}
 		overlay->damaged = 0;
-		canUnredirect = False;
 	}
-
-	if (gameFocused && notification && notification->opacity)
+	
+	if (gameFocused && notification)
 	{
-		paint_window(dpy, notification, True, True);
+		if (notification->opacity)
+		{
+			paint_window(dpy, notification, True, True);
+			canUnredirect = False;
+		}
 		notification->damaged = 0;
-		canUnredirect = False;
 	}
 	
 	// Draw SW cursor if we need to
@@ -968,8 +978,8 @@ determine_and_apply_focus (Display *dpy)
 			focus = w;
 		}
 		
-		if (w->gameID && w->a.map_state == IsViewable && 1 &&
-			(w->damage_sequence >= maxDamageSequence || w->map_sequence >= maxMapSequence) &&
+		if (w->gameID && w->a.map_state == IsViewable &&
+			(w->damage_sequence > maxDamageSequence || w->map_sequence > maxMapSequence) &&
 			(!w->a.override_redirect || w->ignoreOverrideRedirect))
 		{
 			focus = w;
@@ -1122,8 +1132,8 @@ get_size_hints(Display *dpy, win *w)
 				// If we have a unique children that isn't override-reidrect that is
 				// contained inside this fullscreen window, it's probably it.
 				if (attribs.override_redirect == False &&
-					attribs.width < w->a.width &&
-					attribs.height < w->a.height)
+					attribs.width <= w->a.width &&
+					attribs.height <= w->a.height)
 				{
 					w->sizeHintsSpecified = True;
 					
@@ -1206,7 +1216,7 @@ unmap_win (Display *dpy, Window id, Bool fade)
 }
 
 static void
-add_win (Display *dpy, Window id, Window prev)
+add_win (Display *dpy, Window id, Window prev, unsigned long sequence)
 {
 	win				*new = malloc (sizeof (win));
 	win				**p;
@@ -1265,7 +1275,7 @@ add_win (Display *dpy, Window id, Window prev)
 	new->next = *p;
 	*p = new;
 	if (new->a.map_state == IsViewable)
-		map_win (dpy, id, new->damage_sequence - 1);
+		map_win (dpy, id, sequence);
 	
 	determine_and_apply_focus (dpy);
 }
@@ -1557,6 +1567,13 @@ register_cm (Display *dpy)
 	
 	XSetSelectionOwner (dpy, a, w, 0);
 	
+	ourWindow = w;
+	
+	exposeEvent.type = Expose;
+	exposeEvent.xexpose.window = ourWindow;
+	exposeEvent.xexpose.width = 1;
+	exposeEvent.xexpose.height = 1;
+	
 	return True;
 }
 
@@ -1577,7 +1594,7 @@ main (int argc, char **argv)
 	char	    *display = NULL;
 	int		    o;
 	
-	while ((o = getopt (argc, argv, "D:I:O:d:r:o:l:t:scnufFCaSv")) != -1)
+	while ((o = getopt (argc, argv, "D:I:O:d:r:o:l:t:scnufFCaSvV")) != -1)
 	{
 		switch (o) {
 			case 'd':
@@ -1591,6 +1608,9 @@ main (int argc, char **argv)
 				break;
 			case 'v':
 				drawDebugInfo = True;
+				break;
+			case 'V':
+				debugEvents = True;
 				break;
 			case 'u':
 				allowUnredirection = True;
@@ -1761,7 +1781,7 @@ main (int argc, char **argv)
 	XFixesSelectCursorInput(dpy, root, XFixesDisplayCursorNotifyMask);
 	XQueryTree (dpy, root, &root_return, &parent_return, &children, &nchildren);
 	for (i = 0; i < nchildren; i++)
-		add_win (dpy, children[i], i ? children[i-1] : None);
+		add_win (dpy, children[i], i ? children[i-1] : None, 0);
 	XFree (children);
 	
 	XUngrabServer (dpy);
@@ -1778,14 +1798,14 @@ main (int argc, char **argv)
 			XNextEvent (dpy, &ev);
 			if ((ev.type & 0x7f) != KeymapNotify)
 				discard_ignore (dpy, ev.xany.serial);
-			#if DEBUG_EVENTS
-			printf ("event %10.10s serial 0x%08x window 0x%08x\n",
-					ev_name(&ev), ev_serial (&ev), ev_window (&ev));
-			#endif
+			if (debugEvents)
+			{
+				printf ("event %x\n", ev.type);
+			}
 			switch (ev.type) {
 				case CreateNotify:
 					if (ev.xcreatewindow.parent == root)
-						add_win (dpy, ev.xcreatewindow.window, 0);
+						add_win (dpy, ev.xcreatewindow.window, 0, ev.xcreatewindow.serial);
 					break;
 				case ConfigureNotify:
 					configure_win (dpy, &ev.xconfigure);
@@ -1816,7 +1836,7 @@ main (int argc, char **argv)
 				}
 				case ReparentNotify:
 					if (ev.xreparent.parent == root)
-						add_win (dpy, ev.xreparent.window, 0);
+						add_win (dpy, ev.xreparent.window, 0, ev.xreparent.serial);
 					else
 					{
 						win * w = find_win(dpy, ev.xreparent.window);
@@ -1959,6 +1979,10 @@ main (int argc, char **argv)
 		} while (QLength (dpy));
 
 		if (doRender)
-			paint_all (dpy);
+		{
+			paint_all(dpy);
+			
+			XSendEvent(dpy, ourWindow, True, ExposureMask, &exposeEvent);
+		}
 	}
 }
