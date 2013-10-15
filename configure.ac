@@ -1,0 +1,8 @@
+AC_INIT([steamos-compostitor], [1.0], [linux@steampowered.com], [http://support.steampowered.com])
+AM_INIT_AUTOMAKE([foreign])
+PKG_CHECK_MODULES([DEPS],xxf86vm gl x11 xrender xcomposite)
+
+AC_PROG_CC
+AC_PROG_CC_STDC
+
+AC_OUTPUT([Makefile])

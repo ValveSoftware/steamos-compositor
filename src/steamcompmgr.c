@@ -185,6 +185,7 @@ float			currentFrameRate;
 static void
 init_text_rendering(void)
 {
+#if 0
 	textPathObjects = glGenPathsNV(256);
 
 	glPathGlyphRangeNV(	textPathObjects,
@@ -207,6 +208,7 @@ init_text_rendering(void)
 							textPathObjects, 256,
 							0,
 							&textXAdvance[0]);
+#endif
 }
 
 static XserverRegion
@@ -631,6 +633,7 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 static void
 paint_message (const char *message, int Y, float r, float g, float b)
 {
+#if 0
 	int messageLength = strlen(message);
 	GLfloat horizontalOffsets[messageLength + 1];
 	
@@ -679,7 +682,7 @@ paint_message (const char *message, int Y, float r, float g, float b)
 	glDisable(GL_STENCIL_TEST);
 	
 	glPopMatrix();
-
+#endif
 }
 
 static void
