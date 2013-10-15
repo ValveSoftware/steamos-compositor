@@ -754,6 +754,7 @@ paint_all (Display *dpy)
 	win	*t = NULL;
 	
 	Bool canUnredirect = True;
+	Bool overlayDamaged = False;
 	
 	if (unredirectedWindow)
 		return;
@@ -765,11 +766,19 @@ paint_all (Display *dpy)
 	overlay = find_win(dpy, currentOverlayWindow);
 	notification = find_win(dpy, currentNotificationWindow);
 	
+	if (gameFocused)
+	{
+		if (overlay && overlay->damaged)
+			overlayDamaged = True;
+		if (notification && notification->damaged)
+			overlayDamaged = True;
+	}
+	
 	if (!w)
 		return;
 	
 	// Don't pump new frames if no animation on the focus window, unless we're fading
-	if (!w->damaged && !fadeOutWindow.id)
+	if (!w->damaged && !overlayDamaged && !fadeOutWindow.id)
 		return;
 		
 
@@ -843,12 +852,14 @@ paint_all (Display *dpy)
 	if (gameFocused && overlay && overlay->opacity)
 	{
 		paint_window(dpy, overlay, True, False);
+		overlay->damaged = 0;
 		canUnredirect = False;
 	}
 
 	if (gameFocused && notification && notification->opacity)
 	{
 		paint_window(dpy, notification, True, True);
+		notification->damaged = 0;
 		canUnredirect = False;
 	}
 	
@@ -1388,6 +1399,9 @@ damage_win (Display *dpy, XDamageNotifyEvent *de)
 	if (!w)
 		return;
 	
+	if (w->isOverlay && !w->opacity)
+		return;
+	
 	// First damage event we get, compute focus; we only want to focus damaged
 	// windows to have meaningful frames.
 	if (w->damage_sequence == 0)
@@ -1835,18 +1849,21 @@ main (int argc, char **argv)
 					{
 						/* reset mode and redraw window */
 						win * w = find_win(dpy, ev.xproperty.window);
-						if (w)
+						if (w && w->isOverlay)
 						{
-							w->opacity = get_prop(dpy, w->id, opacityAtom, TRANSLUCENT);
+							unsigned int newOpacity = get_prop(dpy, w->id, opacityAtom, TRANSLUCENT);
 							
-							if (w->opacity && w->isOverlay)
+							if (newOpacity != w->opacity)
 							{
-								if (unredirectedWindow != None)
-								{
-									XCompositeRedirectWindow(dpy, unredirectedWindow, CompositeRedirectManual);
-									ensure_win_resources(dpy, find_win(dpy, unredirectedWindow));
-									unredirectedWindow = None;
-								}
+								w->damaged = 1;
+								w->opacity = newOpacity;
+							}
+							
+							if (w->opacity && unredirectedWindow != None)
+							{
+								XCompositeRedirectWindow(dpy, unredirectedWindow, CompositeRedirectManual);
+								ensure_win_resources(dpy, find_win(dpy, unredirectedWindow));
+								unredirectedWindow = None;
 							}
 						}
 					}
