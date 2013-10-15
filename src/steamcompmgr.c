@@ -337,7 +337,7 @@ win_extents (Display *dpy, win *w)
 	return XFixesCreateRegion (dpy, &r, 1);
 }
 
-GLXFBConfig win_fbconfig(Display *display, win *w)
+GLXFBConfig win_fbconfig(Display *display, Window id)
 {
 	XWindowAttributes attrib;
 	VisualID visualid;
@@ -346,7 +346,7 @@ GLXFBConfig win_fbconfig(Display *display, win *w)
 	XVisualInfo *visinfo;
 
 	attrib.visual = 0x0;
-	XGetWindowAttributes (display, w->id, &attrib);
+	XGetWindowAttributes (display, id, &attrib);
 	
 	if (!attrib.visual)
 		return None;
@@ -431,7 +431,7 @@ teardown_win_resources (Display *dpy, win *w)
 static void
 ensure_win_resources (Display *dpy, win *w)
 {
-	if (!w)
+	if (!w || !w->fbConfig)
 		return;
 
 	if (!w->pixmap)
@@ -1219,7 +1219,14 @@ add_win (Display *dpy, Window id, Window prev)
 	}
 	new->damaged = 0;
 	new->pixmap = None;
-	new->fbConfig = win_fbconfig(dpy, new);
+	new->fbConfig = win_fbconfig(dpy, new->id);
+	if (new->fbConfig == None)
+	{
+		// XXX figure out why Thomas was Alone window doesn't work when using its
+		// visual but works with that fallback to the root window visual; is it
+		// because it has several samples?
+		new->fbConfig = win_fbconfig(dpy, root);
+	}
 	glGenTextures (1, &new->texName);
 	new->damage_sequence = 0;
 	new->map_sequence = 0;
