@@ -99,6 +99,8 @@ typedef struct _win {
 	unsigned int requestedHeight;
 	Bool nudged;
 	Bool ignoreOverrideRedirect;
+	
+	Bool mouseMoved;
 } win;
 
 typedef struct _conv {
@@ -148,7 +150,13 @@ Bool 			cursorImageDirty = True;
 int 			cursorHotX, cursorHotY;
 int				cursorWidth, cursorHeight;
 GLuint			cursorTextureName;
-Bool			cursorHidden = False;
+
+Bool			cursorVisible = True;
+Bool			hideCursorForScale;
+Bool			hideCursorForMovement;
+unsigned int	lastCursorMovedTime;
+
+#define			CURSOR_HIDE_TIME 3000
 
 Bool			gotXError = False;
 
@@ -430,6 +438,8 @@ teardown_win_resources (Display *dpy, win *w)
 		XFreePixmap(dpy, w->pixmap);
 		w->pixmap = None;
 	}
+	
+	w->damaged = 0;
 }
 
 static void
@@ -472,6 +482,9 @@ paint_fake_cursor (Display *dpy, win *w)
 	if (cursorImageDirty)
 	{
 		XFixesCursorImage* im = XFixesGetCursorImage(dpy);
+		
+		if (!im)
+			return;
 		
 		cursorHotX = im->xhot;
 		cursorHotY = im->yhot;
@@ -876,7 +889,8 @@ paint_all (Display *dpy)
 	// Draw SW cursor if we need to
 	if (w && focusedWindowNeedsScale && gameFocused)
 	{
-		paint_fake_cursor(dpy, w);
+		if (!hideCursorForMovement)
+			paint_fake_cursor(dpy, w);
 		canUnredirect = False;
 	}
 	
@@ -901,6 +915,25 @@ paint_all (Display *dpy)
 }
 
 static void
+apply_cursor_state (Display *dpy)
+{
+	Bool newCursorVisibility = True;
+
+	if (hideCursorForScale || hideCursorForMovement)
+		newCursorVisibility = False;
+	
+	if (newCursorVisibility != cursorVisible)
+	{
+		cursorVisible = newCursorVisibility;
+		
+		if (cursorVisible)
+			XFixesShowCursor(dpy, DefaultRootWindow(dpy));
+		else
+			XFixesHideCursor(dpy, DefaultRootWindow(dpy));
+	}
+}
+
+static void
 setup_pointer_barriers (Display *dpy)
 {
 	int i;
@@ -918,18 +951,16 @@ setup_pointer_barriers (Display *dpy)
 	
 	if (focusedWindowNeedsScale == False)
 	{
-		if (cursorHidden) {
-			XFixesShowCursor(dpy, DefaultRootWindow(dpy));
-			cursorHidden = False;
-		}
+		hideCursorForScale = False;
+		apply_cursor_state(dpy);
 		return;
 	}
 	
 	// If we're scaling, take ownership of the cursor
-	if (doRender && !cursorHidden)
+	if (doRender)
 	{
-		XFixesHideCursor(dpy, DefaultRootWindow(dpy));
-		cursorHidden = True;
+		hideCursorForScale = True;
+		apply_cursor_state(dpy);
 	}
 	
 	// Constrain it to the window; careful, the corners will leak due to a known X server bug
@@ -1271,6 +1302,8 @@ add_win (Display *dpy, Window id, Window prev, unsigned long sequence)
 	new->requestedHeight = 0;
 	new->nudged = False;
 	new->ignoreOverrideRedirect = False;
+	
+	new->mouseMoved = False;
 	
 	new->next = *p;
 	*p = new;
@@ -1788,6 +1821,10 @@ main (int argc, char **argv)
 	
 	XF86VidModeLockModeSwitch(dpy, scr, True);
 	
+	// Start it with the cursor hidden until moved by user
+	hideCursorForMovement = True;
+	apply_cursor_state(dpy);
+	
 	gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
 	
 	determine_and_apply_focus(dpy);
@@ -1963,6 +2000,18 @@ main (int argc, char **argv)
 						{
 							w->damaged = 1;
 						}
+						
+						// Ignore the first event as it's likely to be a warp, not user-initiated
+						if (w && !w->mouseMoved)
+						{
+							w->mouseMoved = True;
+							break;
+						}
+						
+						lastCursorMovedTime = get_time_in_milliseconds();
+						
+						hideCursorForMovement = False;
+						apply_cursor_state(dpy);
 					}
 					break;
 				default:
@@ -1982,7 +2031,17 @@ main (int argc, char **argv)
 		{
 			paint_all(dpy);
 			
-			XSendEvent(dpy, ourWindow, True, ExposureMask, &exposeEvent);
+			// If we're in the middle of a fade, pump an event into the loop to
+			// make sure we keep pushing frames even if the app isn't updating.
+			if (fadeOutWindow.id)
+				XSendEvent(dpy, ourWindow, True, ExposureMask, &exposeEvent);
+			
+			if (!hideCursorForMovement &&
+				(get_time_in_milliseconds() - lastCursorMovedTime) > CURSOR_HIDE_TIME)
+			{
+				hideCursorForMovement = True;
+				apply_cursor_state(dpy);
+			}
 		}
 	}
 }
