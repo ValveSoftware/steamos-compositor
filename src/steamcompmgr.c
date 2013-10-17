@@ -141,6 +141,8 @@ Bool			gameFocused;
 
 unsigned int 	gamesRunningCount;
 
+float			globalScaleRatio = 1.0f;
+
 Bool			focusedWindowNeedsScale;
 float			cursorScaleRatio;
 int				cursorOffsetX, cursorOffsetY;
@@ -171,6 +173,7 @@ static Atom		steamAtom;
 static Atom		gameAtom;
 static Atom		overlayAtom;
 static Atom		gamesRunningAtom;
+static Atom		screenScaleAtom;
 static Atom		opacityAtom;
 static Atom		winTypeAtom;
 static Atom		winDesktopAtom;
@@ -192,6 +195,7 @@ GLXContext glContext;
 #define STEAM_PROP			"STEAM_BIGPICTURE"
 #define OVERLAY_PROP		"STEAM_OVERLAY"
 #define GAMES_RUNNING_PROP 	"STEAM_GAMES_RUNNING"
+#define SCREEN_SCALE_PROP	"STEAM_SCREEN_SCALE"
 
 #define TRANSLUCENT	0x00000000
 #define OPAQUE		0xffffffff
@@ -467,7 +471,7 @@ ensure_win_resources (Display *dpy, win *w)
 static void
 paint_fake_cursor (Display *dpy, win *w)
 {
-	int scaledCursorX, scaledCursorY;
+	float scaledCursorX, scaledCursorY;
 	
 	Window window_returned, child;
 	int root_x, root_y;
@@ -504,8 +508,8 @@ paint_fake_cursor (Display *dpy, win *w)
 		cursorImageDirty = False;
 	}
 	
-	scaledCursorX = (win_x - w->a.x) * cursorScaleRatio - cursorHotX + cursorOffsetX;
-	scaledCursorY = (win_y - w->a.y) * cursorScaleRatio - cursorHotY + cursorOffsetY;
+	scaledCursorX = (win_x - w->a.x) * cursorScaleRatio * globalScaleRatio - cursorHotX + cursorOffsetX;
+	scaledCursorY = (win_y - w->a.y) * cursorScaleRatio * globalScaleRatio - cursorHotY + cursorOffsetY;
 	
 	glEnable(GL_BLEND);
 	glBindTexture(GL_TEXTURE_2D, cursorTextureName);
@@ -514,6 +518,26 @@ paint_fake_cursor (Display *dpy, win *w)
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
+	win *mainOverlayWindow = find_win(dpy, currentOverlayWindow);
+	float displayCursorWidth = cursorWidth;
+	float displayCursorHeight = cursorHeight;
+	
+	// Ensure the cursor looks the same size as in Steam or the overlay
+	if (mainOverlayWindow)
+	{
+		// The first scale we need to apply is the Steam/overlay scale, if it exists
+		float steamScaleX = (float)root_width / mainOverlayWindow->a.width;
+		float steamScaleY = (float)root_height / mainOverlayWindow->a.height;
+		
+		float steamRatio = (steamScaleX < steamScaleY) ? steamScaleX : steamScaleY;
+		
+		displayCursorWidth *= steamRatio;
+		displayCursorHeight *= steamRatio;
+		
+		// Then any global scale, since it would also apply to the Steam window and its SW cursor
+		displayCursorWidth *= globalScaleRatio;
+		displayCursorHeight *= globalScaleRatio;
+	}
 	
 	glColor3f(1.0f, 1.0f, 1.0f);
 	
@@ -521,11 +545,11 @@ paint_fake_cursor (Display *dpy, win *w)
 	glTexCoord2d (0.0f, 0.0f);
 	glVertex2d (scaledCursorX, scaledCursorY);
 	glTexCoord2d (1.0f, 0.0f);
-	glVertex2d (scaledCursorX + cursorWidth, scaledCursorY);
+	glVertex2d (scaledCursorX + displayCursorWidth, scaledCursorY);
 	glTexCoord2d (1.0f, 1.0f);
-	glVertex2d (scaledCursorX + cursorWidth, scaledCursorY + cursorHeight);
+	glVertex2d (scaledCursorX + displayCursorWidth, scaledCursorY + displayCursorHeight);
 	glTexCoord2d (0.0f, 1.0f);
-	glVertex2d (scaledCursorX, scaledCursorY + cursorHeight);
+	glVertex2d (scaledCursorX, scaledCursorY + displayCursorHeight);
 	glEnd ();
 }
 
@@ -559,12 +583,13 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 	glBindTexture (GL_TEXTURE_2D, w->texName);
 	glEnable(GL_TEXTURE_2D);
 	
-	if (sourceWidth != root_width || sourceHeight != root_height)
+	if (sourceWidth != root_width || sourceHeight != root_height || globalScaleRatio != 1.0f)
 	{
 		float XRatio = (float)root_width / sourceWidth;
 		float YRatio = (float)root_height / sourceHeight;
 		
 		currentScaleRatio = (XRatio < YRatio) ? XRatio : YRatio;
+		currentScaleRatio *= globalScaleRatio;
 		
 		drawXOffset = (root_width - sourceWidth * currentScaleRatio) / 2.0f;
 		drawYOffset = (root_height - sourceHeight * currentScaleRatio) / 2.0f;
@@ -632,11 +657,19 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 	
 	if (notificationMode)
 	{
+		int xOffset = 0, yOffset = 0;
+
 		width = w->a.width * currentScaleRatio;
 		height = w->a.height * currentScaleRatio;
+		
+		if (globalScaleRatio != 1.0f)
+		{
+			xOffset = (root_width - root_width * globalScaleRatio) / 2.0;
+			yOffset = (root_height - root_height * globalScaleRatio) / 2.0;
+		}
 
-		originX = root_width - width;
-		originY = root_height - height;
+		originX = root_width - xOffset - width;
+		originY = root_height - yOffset - height;
 	}
 	else
 	{
@@ -1055,7 +1088,7 @@ determine_and_apply_focus (Display *dpy)
 	currentFocusWindow = focus->id;
 	w = focus;
 
-	if (w->a.width != root_width || w->a.height != root_height)
+	if (w->a.width != root_width || w->a.height != root_height || globalScaleRatio != 1.0f)
 	{
 		float XRatio = (float)root_width / w->a.width;
 		float YRatio = (float)root_height / w->a.height;
@@ -1063,8 +1096,8 @@ determine_and_apply_focus (Display *dpy)
 		focusedWindowNeedsScale = True;
 		cursorScaleRatio = (XRatio < YRatio) ? XRatio : YRatio;
 		
-		cursorOffsetX = (root_width - w->a.width * cursorScaleRatio) / 2.0f;
-		cursorOffsetY = (root_height - w->a.height * cursorScaleRatio) / 2.0f;
+		cursorOffsetX = (root_width - w->a.width * cursorScaleRatio * globalScaleRatio) / 2.0f;
+		cursorOffsetY = (root_height - w->a.height * cursorScaleRatio * globalScaleRatio) / 2.0f;
 	}
 	else
 		focusedWindowNeedsScale = False;
@@ -1711,6 +1744,7 @@ main (int argc, char **argv)
 	overlayAtom = XInternAtom (dpy, OVERLAY_PROP, False);
 	opacityAtom = XInternAtom (dpy, OPACITY_PROP, False);
 	gamesRunningAtom = XInternAtom (dpy, GAMES_RUNNING_PROP, False);
+	screenScaleAtom = XInternAtom (dpy, SCREEN_SCALE_PROP, False);
 	winTypeAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE", False);
 	winDesktopAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
 	winDockAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DOCK", False);
@@ -1826,6 +1860,7 @@ main (int argc, char **argv)
 	apply_cursor_state(dpy);
 	
 	gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
+	globalScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
 	
 	determine_and_apply_focus(dpy);
 	
@@ -1970,6 +2005,17 @@ main (int argc, char **argv)
 					if (ev.xproperty.atom == gamesRunningAtom)
 					{
 						gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
+						
+						determine_and_apply_focus(dpy);
+					}
+					if (ev.xproperty.atom == screenScaleAtom)
+					{
+						globalScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+						
+						win *w;
+						
+						if (w = find_win(dpy, currentFocusWindow))
+							w->damaged = 1;
 						
 						determine_and_apply_focus(dpy);
 					}
