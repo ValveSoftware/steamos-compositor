@@ -1991,6 +1991,10 @@ main (int argc, char **argv)
 				case MotionNotify:
 					if (ev.xmotion.window == currentFocusWindow)
 					{
+						// Some stuff likes to warp in-place
+						if (cursorX == ev.xmotion.x && cursorY == ev.xmotion.y)
+							break;
+
 						cursorX = ev.xmotion.x;
 						cursorY = ev.xmotion.y;
 						
@@ -2001,12 +2005,11 @@ main (int argc, char **argv)
 							w->damaged = 1;
 						}
 						
-						// Ignore the first event as it's likely to be a warp, not user-initiated
-						if (w && !w->mouseMoved)
-						{
-							w->mouseMoved = True;
+						// Ignore the first events as it's likely to be non-user-initiated warps
+						// Account for one warp from us, one warp from the app and one warp from
+						// the toolkit.
+						if (w && (w->mouseMoved++ < 3))
 							break;
-						}
 						
 						lastCursorMovedTime = get_time_in_milliseconds();
 						
@@ -2041,6 +2044,14 @@ main (int argc, char **argv)
 			{
 				hideCursorForMovement = True;
 				apply_cursor_state(dpy);
+				
+				// If hiding and was drawing the fake cursor, force redraw
+				win *w = find_win(dpy, currentFocusWindow);
+				
+				if (w && focusedWindowNeedsScale && gameFocused)
+				{
+					w->damaged = 1;
+				}
 			}
 		}
 	}
