@@ -1,0 +1,12 @@
+Source: steamos-compositor
+Maintainer: Pierre-Loup Griffais <pgriffais@valvesoftware.com>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.2
+Build-Depends: debhelper (>= 8)
+
+Package: steamos-compositor
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: SteamOS Compositor
+ Provides graphics compositor services for the full-screen environment of SteamOS

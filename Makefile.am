@@ -1,6 +1,6 @@
 bin_PROGRAMS = steamcompmgr
 
-steamcompmgr_SOURCES = src/steamcompmgr.c
+steamcompmgr_SOURCES = src/steamcompmgr.c src/glext.h
 
 AM_CFLAGS = $(DEPS_CFLAGS)
 AM_LIBS = $(DEPS_LIBS)
