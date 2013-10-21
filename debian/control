@@ -2,8 +2,8 @@ Source: steamos-compositor
 Maintainer: Pierre-Loup Griffais <pgriffais@valvesoftware.com>
 Section: misc
 Priority: optional
-Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 8)
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 8), pkg-config, libxxf86vm-dev, libgl1-mesa-dev, libx11-dev, libxrender-dev, libxcomposite-dev, libxdamage-dev
 
 Package: steamos-compositor
 Architecture: any
