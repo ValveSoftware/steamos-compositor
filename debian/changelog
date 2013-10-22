@@ -1,3 +1,15 @@
+steamos-compositor (1.2) alchemist; urgency=low
+
+  * fix multiarch paths
+
+ -- John Vert <johnv@valvesoftware.com>  Tue, 22 Oct 2013 10:54:50 -0700
+
+steamos-compositor (1.1) alchemist; urgency=low
+
+  * Add steamos-session
+
+ -- John Vert <johnv@valvesoftware.com>  Tue, 22 Oct 2013 09:42:37 -0700
+
 steamos-compositor (1.0) alchemist; urgency=low
 
   * Initial release. 

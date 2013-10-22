@@ -1,0 +1,17 @@
+#!/bin/sh
+export SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS=0
+
+export HOMETEST_DESKTOP=1
+export HOMETEST_USER=steambox
+export HOMETEST_DESKTOP_USER=steambox-desktop
+export HOMETEST_DESKTOP_SESSION=gnome
+
+# do that for both archs with the right paths
+export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu;/usr/lib/i386-linux-gnu
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libmodeswitch_inhibitor.so;/usr/lib/i386-linux-gnu/libmodeswitch_inhibitor.so
+
+steamcompmgr &
+
+# loadargbcursor /home/steambox/arrow.png
+
+steam -tenfoot -steamos -windowed
