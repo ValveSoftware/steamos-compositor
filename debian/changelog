@@ -1,3 +1,9 @@
+steamos-compositor (1.3) alchemist; urgency=low
+
+  * Add loadargbcursor
+
+ -- John Vert <johnv@valvesoftware.com>  Tue, 22 Oct 2013 20:10:16 -0700
+
 steamos-compositor (1.2) alchemist; urgency=low
 
   * fix multiarch paths
