@@ -2,8 +2,8 @@
 export SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS=0
 
 export HOMETEST_DESKTOP=1
-export HOMETEST_USER=steambox
-export HOMETEST_DESKTOP_USER=steambox-desktop
+export HOMETEST_USER=steam
+export HOMETEST_DESKTOP_USER=desktop
 export HOMETEST_DESKTOP_SESSION=gnome
 
 # do that for both archs with the right paths
@@ -14,4 +14,4 @@ steamcompmgr &
 
 # loadargbcursor /home/steambox/arrow.png
 
-steam -tenfoot -steamos -windowed
+steam -tenfoot -steamos

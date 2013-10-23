@@ -1129,6 +1129,11 @@ determine_and_apply_focus (Display *dpy)
 	{
 		XResizeWindow(dpy, focus->id, focus->requestedWidth, focus->requestedHeight);
 	}
+	
+	if (focus->a.width > root_width || focus->a.height > root_height)
+	{
+		XResizeWindow(dpy, focus->id, root_width, root_height);
+	}
 }
 
 /* Get prop from window
@@ -1169,6 +1174,11 @@ get_size_hints(Display *dpy, win *w)
 		w->requestedWidth = hints.max_width;
 		w->requestedHeight = hints.max_height;
 		
+		if (w->requestedWidth > root_width)
+			w->requestedWidth = root_width;
+		if (w->requestedHeight > root_height)
+			w->requestedHeight = root_height;
+		
 		w->sizeHintsSpecified = True;
 	}
 	else
@@ -1203,6 +1213,11 @@ get_size_hints(Display *dpy, win *w)
 					
 					w->requestedWidth = attribs.width;
 					w->requestedHeight = attribs.height;
+					
+					if (w->requestedWidth > root_width)
+						w->requestedWidth = root_width;
+					if (w->requestedHeight > root_height)
+						w->requestedHeight = root_height;
 					
 					XMoveWindow(dpy, children[0], 0, 0);
 					

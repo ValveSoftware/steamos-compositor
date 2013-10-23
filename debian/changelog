@@ -1,3 +1,9 @@
+steamos-compositor (1.4) alchemist; urgency=low
+
+  * Fix running Steam and games that are higher resolution than the desktop.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 23 Oct 2013 16:17:58 -0700
+
 steamos-compositor (1.3) alchemist; urgency=low
 
   * Add loadargbcursor
