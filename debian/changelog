@@ -1,3 +1,9 @@
+steamos-compositor (1.5) alchemist; urgency=low
+
+  * Use Steam Big Picture cursor as the root window cursor.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 25 Oct 2013 18:59:41 -0700
+
 steamos-compositor (1.4) alchemist; urgency=low
 
   * Fix running Steam and games that are higher resolution than the desktop.
