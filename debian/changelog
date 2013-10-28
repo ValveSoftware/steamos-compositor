@@ -1,3 +1,10 @@
+steamos-compositor (1.6) alchemist; urgency=low
+
+  * Fix audio by starting and publishing pulse session daemon before Steam
+    starts.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 28 Oct 2013 16:17:00 -0700
+
 steamos-compositor (1.5) alchemist; urgency=low
 
   * Use Steam Big Picture cursor as the root window cursor.

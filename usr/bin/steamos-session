@@ -6,11 +6,12 @@ export HOMETEST_USER=steam
 export HOMETEST_DESKTOP_USER=desktop
 export HOMETEST_DESKTOP_SESSION=gnome
 
-export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libmodeswitch_inhibitor.so;/usr/lib/i386-linux-gnu/libmodeswitch_inhibitor.so
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libmodeswitch_inhibitor.so:/usr/lib/i386-linux-gnu/libmodeswitch_inhibitor.so
 
 steamcompmgr &
 
-sleep 0.1
+start-pulseaudio-x11
+
 loadargb_cursor /usr/share/icons/steam/arrow.png
 
 steam -tenfoot -steamos
