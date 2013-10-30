@@ -1,3 +1,9 @@
+steamos-compositor (1.7) alchemist; urgency=low
+
+  * Add -enableremotecontrol to Steam commandline arguments.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 29 Oct 2013 19:56:56 -0700
+
 steamos-compositor (1.6) alchemist; urgency=low
 
   * Fix audio by starting and publishing pulse session daemon before Steam

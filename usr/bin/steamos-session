@@ -14,4 +14,4 @@ start-pulseaudio-x11
 
 loadargb_cursor /usr/share/icons/steam/arrow.png
 
-steam -tenfoot -steamos
+steam -tenfoot -steamos -enableremotecontrol
