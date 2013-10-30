@@ -1241,7 +1241,8 @@ map_win (Display *dpy, Window id, unsigned long sequence)
 	w->a.map_state = IsViewable;
 	
 	/* This needs to be here or else we lose transparency messages */
-	XSelectInput (dpy, id, PropertyChangeMask | SubstructureNotifyMask | PointerMotionMask);
+	XSelectInput (dpy, id, PropertyChangeMask | SubstructureNotifyMask |
+					PointerMotionMask | LeaveWindowMask);
 	
 	/* This needs to be here since we don't get PropertyNotify when unmapped */
 	w->opacity = get_prop (dpy, w->id, opacityAtom, TRANSLUCENT);
@@ -1858,6 +1859,7 @@ main (int argc, char **argv)
 				  StructureNotifyMask|
 				  FocusChangeMask|
 				  PointerMotionMask|
+				  LeaveWindowMask|
 				  PropertyChangeMask);
 	XShapeSelectInput (dpy, root, ShapeNotifyMask);
 	XFixesSelectCursorInput(dpy, root, XFixesDisplayCursorNotifyMask);
@@ -2049,6 +2051,16 @@ main (int argc, char **argv)
 					}
 					break;
 				}
+				case LeaveNotify:
+					if (ev.xcrossing.window == currentFocusWindow)
+					{
+						// This shouldn't happen due to our pointer barriers,
+						// but there is a known X server bug; warp to last good
+						// position.
+						XWarpPointer(dpy, None, currentFocusWindow, 0, 0, 0, 0,
+									 cursorX, cursorY);
+					}
+					break;
 				case MotionNotify:
 					if (ev.xmotion.window == currentFocusWindow)
 					{
@@ -2108,6 +2120,12 @@ main (int argc, char **argv)
 				
 				// If hiding and was drawing the fake cursor, force redraw
 				win *w = find_win(dpy, currentFocusWindow);
+				
+				// Rearm warp count
+				if (w)
+				{
+					w->mouseMoved = 0;
+				}
 				
 				if (w && focusedWindowNeedsScale && gameFocused)
 				{

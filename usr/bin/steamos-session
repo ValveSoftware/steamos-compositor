@@ -8,6 +8,11 @@ export HOMETEST_DESKTOP_SESSION=gnome
 
 export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libmodeswitch_inhibitor.so:/usr/lib/i386-linux-gnu/libmodeswitch_inhibitor.so
 
+# Disable DPMS and screen blanking for now; it doesn't know about controller
+# or Steam remote control events right now
+xset -dpms
+xset s off
+
 steamcompmgr &
 
 start-pulseaudio-x11

@@ -1,3 +1,12 @@
+steamos-compositor (1.8) alchemist; urgency=low
+
+  * Rearm ignore warp count when hiding cursor to prevent spurious appearances.
+  * Work around X server bug 69198 by warping the cursor back into our window
+    if it escapes.
+  * Disable DPMS and the X screensaver for now in the SteamOS session.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 30 Oct 2013 09:47:18 -0700
+
 steamos-compositor (1.7) alchemist; urgency=low
 
   * Add -enableremotecontrol to Steam commandline arguments.
