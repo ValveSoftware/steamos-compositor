@@ -7,6 +7,6 @@ Build-Depends: debhelper (>= 8), pkg-config, libxxf86vm-dev, libgl1-mesa-dev, li
 
 Package: steamos-compositor
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: libsdl-image1.2, ${shlibs:Depends}, ${misc:Depends}
 Description: SteamOS Compositor
  Provides graphics compositor services for the full-screen environment of SteamOS
