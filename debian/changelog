@@ -1,3 +1,10 @@
+steamos-compositor (1.10) alchemist; urgency=low
+
+  * Monitor mouse input of the child window the legacy SDL1.2 fullscreen.
+  * Clamp fake cursor image.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 12 Nov 2013 18:45:37 -0800
+
 steamos-compositor (1.9) alchemist; urgency=low
 
   * Add SDL_image dependency for loadargbcursor.

@@ -503,6 +503,9 @@ paint_fake_cursor (Display *dpy, win *w)
 		glBindTexture(GL_TEXTURE_2D, cursorTextureName);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cursorWidth, cursorHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, cursorDataBuffer);
 		
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		
 		XFree(im);
 		
 		cursorImageDirty = False;
@@ -1222,6 +1225,9 @@ get_size_hints(Display *dpy, win *w)
 					XMoveWindow(dpy, children[0], 0, 0);
 					
 					w->ignoreOverrideRedirect = True;
+					
+					// Look for mouse motion in that child while we're at it.
+					XSelectInput(dpy, children[0], PointerMotionMask);
 				}
 			}
 			
@@ -2062,7 +2068,9 @@ main (int argc, char **argv)
 					}
 					break;
 				case MotionNotify:
-					if (ev.xmotion.window == currentFocusWindow)
+				{
+					win * w = find_win(dpy, ev.xmotion.window);
+					if (w->id == currentFocusWindow)
 					{
 						// Some stuff likes to warp in-place
 						if (cursorX == ev.xmotion.x && cursorY == ev.xmotion.y)
@@ -2090,6 +2098,7 @@ main (int argc, char **argv)
 						apply_cursor_state(dpy);
 					}
 					break;
+				}
 				default:
 					if (ev.type == damage_event + XDamageNotify)
 					{
