@@ -1030,6 +1030,7 @@ determine_and_apply_focus (Display *dpy)
 	
 	unsigned long maxDamageSequence = 0;
 	unsigned long maxMapSequence = 0;
+	Bool usingOverrideRedirectWindow = False;
 	
 	if (unredirectedWindow != None)
 	{
@@ -1045,14 +1046,23 @@ determine_and_apply_focus (Display *dpy)
 			focus = w;
 		}
 		
+		// We allow using an override redirect window in some cases, but if we have
+		// a choice between two windows we always prefer the non-override redirect one.
+		Bool windowIsOverrideRedirect = w->a.override_redirect && !w->ignoreOverrideRedirect;
+		
 		if (w->gameID && w->a.map_state == IsViewable &&
 			(w->damage_sequence > maxDamageSequence || w->map_sequence > maxMapSequence) &&
-			(!w->a.override_redirect || w->ignoreOverrideRedirect))
+			(!windowIsOverrideRedirect || !usingOverrideRedirectWindow))
 		{
 			focus = w;
 			gameFocused = True;
 			maxDamageSequence = w->damage_sequence;
 			maxMapSequence = w->map_sequence;
+			
+			if (windowIsOverrideRedirect)
+			{
+				usingOverrideRedirectWindow = True;
+			}
 		}
 		
 		if (w->isOverlay)
@@ -1133,10 +1143,20 @@ determine_and_apply_focus (Display *dpy)
 		XResizeWindow(dpy, focus->id, focus->requestedWidth, focus->requestedHeight);
 	}
 	
-	if (focus->a.width > root_width || focus->a.height > root_height)
+	Window	    root_return = None, parent_return = None;
+	Window	    *children = NULL;
+	unsigned int    nchildren = 0;
+	unsigned int    i = 0;
+	
+	XQueryTree (dpy, w->id, &root_return, &parent_return, &children, &nchildren);
+	
+	while (i < nchildren)
 	{
-		XResizeWindow(dpy, focus->id, root_width, root_height);
+		XSelectInput(dpy, children[i], PointerMotionMask);
+		i++;
 	}
+	
+	XFree (children);
 }
 
 /* Get prop from window
@@ -1172,15 +1192,12 @@ get_size_hints(Display *dpy, win *w)
 	
 	XGetWMNormalHints(dpy, w->id, &hints, &hintsSpecified);
 	
-	if (hintsSpecified & PMaxSize && hints.max_width * hints.max_height)
+	if (hintsSpecified & (PMaxSize | PMinSize) &&
+		hints.max_width * hints.max_height * hints.min_width * hints.min_height &&
+		hints.max_width == hints.min_width && hints.min_height == hints.max_height)
 	{
 		w->requestedWidth = hints.max_width;
 		w->requestedHeight = hints.max_height;
-		
-		if (w->requestedWidth > root_width)
-			w->requestedWidth = root_width;
-		if (w->requestedHeight > root_height)
-			w->requestedHeight = root_height;
 		
 		w->sizeHintsSpecified = True;
 	}
@@ -1217,17 +1234,9 @@ get_size_hints(Display *dpy, win *w)
 					w->requestedWidth = attribs.width;
 					w->requestedHeight = attribs.height;
 					
-					if (w->requestedWidth > root_width)
-						w->requestedWidth = root_width;
-					if (w->requestedHeight > root_height)
-						w->requestedHeight = root_height;
-					
 					XMoveWindow(dpy, children[0], 0, 0);
 					
 					w->ignoreOverrideRedirect = True;
-					
-					// Look for mouse motion in that child while we're at it.
-					XSelectInput(dpy, children[0], PointerMotionMask);
 				}
 			}
 			

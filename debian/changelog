@@ -1,3 +1,18 @@
+steamos-compositor (1.12) alchemist; urgency=low
+
+  * Only honor size hints if they specify the same min and max size, since
+    "Long Live the Queen" sets a maximum size of 4k X 4k.
+  * Listen for pointer motion on all children of the focus window.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 13 Nov 2013 16:04:35 -0800
+
+steamos-compositor (1.11) alchemist; urgency=low
+
+  * The Bard's Tale has a single override redirect window; allow using it but
+    always prefer regular windows if they're available.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 13 Nov 2013 11:40:15 -0800
+
 steamos-compositor (1.10) alchemist; urgency=low
 
   * Monitor mouse input of the child window the legacy SDL1.2 fullscreen.
