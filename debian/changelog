@@ -1,3 +1,9 @@
+steamos-compositor (1.13) alchemist; urgency=low
+
+  * update copyright
+
+ -- John Vert <johnv@valvesoftware.com>  Wed, 20 Nov 2013 09:55:42 -0800
+
 steamos-compositor (1.12) alchemist; urgency=low
 
   * Only honor size hints if they specify the same min and max size, since
