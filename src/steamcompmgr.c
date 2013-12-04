@@ -777,13 +777,13 @@ paint_debug_info (Display *dpy)
 	win *overlay = find_win(dpy, currentOverlayWindow);
 	win *notification = find_win(dpy, currentNotificationWindow);
 	
-	if (overlay && gameFocused && overlay->opacity)
+	if (overlay && gamesRunningCount && overlay->opacity)
 	{
 		sprintf(messageBuffer, "Compositing overlay at opacity %f", overlay->opacity / (float)OPAQUE);
 		paint_message(messageBuffer, Y, 1.0f, 0.0f, 1.0f); Y += textYMax;
 	}
 	
-	if (notification && gameFocused && notification->opacity)
+	if (notification && gamesRunningCount && notification->opacity)
 	{
 		sprintf(messageBuffer, "Compositing notification at opacity %f", notification->opacity / (float)OPAQUE);
 		paint_message(messageBuffer, Y, 1.0f, 0.0f, 1.0f); Y += textYMax;
@@ -819,7 +819,7 @@ paint_all (Display *dpy)
 	overlay = find_win(dpy, currentOverlayWindow);
 	notification = find_win(dpy, currentNotificationWindow);
 	
-	if (gameFocused)
+	if (gamesRunningCount)
 	{
 		if (overlay && overlay->damaged)
 			overlayDamaged = True;
@@ -902,7 +902,7 @@ paint_all (Display *dpy)
 		}
 	}
 	
-	if (gameFocused && overlay)
+	if (gamesRunningCount && overlay)
 	{
 		if (overlay->opacity)
 		{
@@ -912,7 +912,7 @@ paint_all (Display *dpy)
 		overlay->damaged = 0;
 	}
 	
-	if (gameFocused && notification)
+	if (gamesRunningCount && notification)
 	{
 		if (notification->opacity)
 		{
@@ -2079,7 +2079,7 @@ main (int argc, char **argv)
 				case MotionNotify:
 				{
 					win * w = find_win(dpy, ev.xmotion.window);
-					if (w->id == currentFocusWindow)
+					if (w && w->id == currentFocusWindow)
 					{
 						// Some stuff likes to warp in-place
 						if (cursorX == ev.xmotion.x && cursorY == ev.xmotion.y)

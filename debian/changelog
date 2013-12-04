@@ -1,3 +1,13 @@
+steamos-compositor (1.14) alchemist; urgency=low
+
+  * Fix possible race condition crash when getting Motion events on out-of-date
+    or yet-untracked windows.
+  * Present the overlay if it's there and a game is running, not only if it 
+    has a window. This ties in with work in Steam to have the overlay window
+    have the same lifetime as the application itself instead of its GL context.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 22 Nov 2013 16:02:08 -0800
+
 steamos-compositor (1.13) alchemist; urgency=low
 
   * update copyright
