@@ -1,3 +1,10 @@
+steamos-compositor (1.15) alchemist; urgency=low
+
+  * Set _NET_WM_STATE_HIDDEN on out of focus windows and the overlays when
+    appropriate. Steam knows to stop its rendering loop when it sees this.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 08 Jan 2014 13:57:13 -0800
+
 steamos-compositor (1.14) alchemist; urgency=low
 
   * Fix possible race condition crash when getting Motion events on out-of-date

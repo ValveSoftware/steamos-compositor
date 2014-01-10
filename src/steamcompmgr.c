@@ -94,6 +94,7 @@ typedef struct _win {
 	unsigned long long int gameID;
 	Bool isOverlay;
 	Bool isFullscreen;
+	Bool isHidden;
 	Bool sizeHintsSpecified;
 	unsigned int requestedWidth;
 	unsigned int requestedHeight;
@@ -186,6 +187,8 @@ static Atom		winDialogAtom;
 static Atom		winNormalAtom;
 static Atom		sizeHintsAtom;
 static Atom		fullscreenAtom;
+static Atom		WMStateAtom;
+static Atom		WMStateHiddenAtom;
 
 GLXContext glContext;
 
@@ -339,6 +342,33 @@ find_win (Display *dpy, Window id)
 	return find_win(dpy, parent);
 }
 
+static void
+set_win_hidden (Display *dpy, win *w, Bool hidden)
+{
+	if (!w || w->id == None)
+	{
+		return;
+	}
+	
+	if (w->isHidden == hidden)
+	{
+		return;
+	}
+	
+	
+	if (hidden == True)
+	{
+		XChangeProperty(dpy, w->id, WMStateAtom, XA_ATOM, 32,
+						PropModeReplace, (unsigned char *)&WMStateHiddenAtom, 1);
+	}
+	else
+	{
+		XChangeProperty(dpy, w->id, WMStateAtom, XA_ATOM, 32,
+						PropModeReplace, (unsigned char *)NULL, 0);
+	}
+	
+	w->isHidden = hidden;
+}
 
 static XserverRegion
 win_extents (Display *dpy, win *w)
@@ -899,6 +929,9 @@ paint_all (Display *dpy)
 				fadeOutWindowGone = False;
 			}
 			fadeOutWindow.id = None;
+			
+			// Finished fading out, mark previous window hidden
+			set_win_hidden(dpy, &fadeOutWindow, True);
 		}
 	}
 	
@@ -1098,8 +1131,15 @@ determine_and_apply_focus (Display *dpy)
 		}
 	}
 	
+	if (fadeOutWindow.id && currentFocusWindow != focus->id)
+	{
+		set_win_hidden(dpy, find_win(dpy, currentFocusWindow), True);
+	}
+	
 	currentFocusWindow = focus->id;
 	w = focus;
+	
+	set_win_hidden(dpy, w, False);
 
 	if (w->a.width != root_width || w->a.height != root_height || globalScaleRatio != 1.0f)
 	{
@@ -1361,6 +1401,7 @@ add_win (Display *dpy, Window id, Window prev, unsigned long sequence)
 	new->isSteam = False;
 	new->gameID = 0;
 	new->isFullscreen = False;
+	new->isHidden = False;
 	new->sizeHintsSpecified = False;
 	new->requestedWidth = 0;
 	new->requestedHeight = 0;
@@ -1787,6 +1828,8 @@ main (int argc, char **argv)
 	winNormalAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_NORMAL", False);
 	sizeHintsAtom = XInternAtom (dpy, "WM_NORMAL_HINTS", False);
 	fullscreenAtom = XInternAtom (dpy, "_NET_WM_STATE_FULLSCREEN", False);
+	WMStateAtom = XInternAtom (dpy, "_NET_WM_STATE", False);
+	WMStateHiddenAtom = XInternAtom (dpy, "_NET_WM_STATE_HIDDEN", False);
 	
 	pa.subwindow_mode = IncludeInferiors;
 	
@@ -1983,11 +2026,16 @@ main (int argc, char **argv)
 								w->opacity = newOpacity;
 							}
 							
-							if (w->opacity && unredirectedWindow != None)
+							if (w->opacity && w->isOverlay && unredirectedWindow != None)
 							{
 								XCompositeRedirectWindow(dpy, unredirectedWindow, CompositeRedirectManual);
 								ensure_win_resources(dpy, find_win(dpy, unredirectedWindow));
 								unredirectedWindow = None;
+							}
+							
+							if (w->isOverlay)
+							{
+								set_win_hidden(dpy, w, w->opacity == TRANSLUCENT);
 							}
 						}
 					}
