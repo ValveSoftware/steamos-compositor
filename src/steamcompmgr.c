@@ -51,6 +51,9 @@
 #define GL_GLEXT_LEGACY
 #include <GL/glx.h>
 #include "glext.h"
+#include "GL/glxext.h"
+
+PFNGLXSWAPINTERVALEXTPROC				__pointer_to_glXSwapIntervalEXT;
 
 void (*__pointer_to_glXBindTexImageEXT) (Display     *display, 
 						 GLXDrawable drawable, 
@@ -1875,6 +1878,16 @@ main (int argc, char **argv)
 	{
 		fprintf (stderr, "Could not make GL context current\n");
 		exit (1);
+	}
+	
+	__pointer_to_glXSwapIntervalEXT = (void *)glXGetProcAddress("glXSwapIntervalEXT");
+	if (__pointer_to_glXSwapIntervalEXT)
+	{
+		__pointer_to_glXSwapIntervalEXT(dpy, root, 1);
+	}
+	else
+	{
+		fprintf (stderr, "Could not find glXSwapIntervalEXT proc pointer\n");
 	}
 	
 	__pointer_to_glXBindTexImageEXT = (void *)glXGetProcAddress("glXBindTexImageEXT");
