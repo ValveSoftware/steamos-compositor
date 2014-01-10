@@ -1,7 +1,8 @@
-steamos-compositor (1.15) alchemist; urgency=low
+steamos-compositor (1.15.1) alchemist; urgency=low
 
   * Set _NET_WM_STATE_HIDDEN on out of focus windows and the overlays when
     appropriate. Steam knows to stop its rendering loop when it sees this.
+  * Fix double cursor when a game is starting or exiting.
 
  -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 08 Jan 2014 13:57:13 -0800
 

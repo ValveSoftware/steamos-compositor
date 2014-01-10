@@ -1018,7 +1018,7 @@ setup_pointer_barriers (Display *dpy)
 		}
 	}
 	
-	if (focusedWindowNeedsScale == False)
+	if (focusedWindowNeedsScale == False && gameFocused)
 	{
 		hideCursorForScale = False;
 		apply_cursor_state(dpy);
@@ -1030,6 +1030,11 @@ setup_pointer_barriers (Display *dpy)
 	{
 		hideCursorForScale = True;
 		apply_cursor_state(dpy);
+	}
+	
+	if (!gameFocused)
+	{
+		return;
 	}
 	
 	// Constrain it to the window; careful, the corners will leak due to a known X server bug
