@@ -1,3 +1,10 @@
+steamos-compositor (1.16) alchemist; urgency=low
+
+  * Only consider InputOutput windows for focus; this fixes "CID The Dummy"
+    and potentially other Wine-based ports. Thanks to Andrew Eikum for helping.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 24 Feb 2014 19:26:12 -0800
+
 steamos-compositor (1.15.2) alchemist; urgency=low
 
   * Set _NET_WM_STATE_HIDDEN on out of focus windows and the overlays when
