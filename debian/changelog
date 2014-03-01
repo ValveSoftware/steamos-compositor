@@ -1,3 +1,9 @@
+steamos-compositor (1.17.3) alchemist; urgency=low
+
+  * Add udev_is_boot_vga, little tool to check which GPU drives the console.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 28 Feb 2014 18:39:57 -0800
+
 steamos-compositor (1.16) alchemist; urgency=low
 
   * Only consider InputOutput windows for focus; this fixes "CID The Dummy"
