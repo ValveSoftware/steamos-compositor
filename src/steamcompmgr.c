@@ -1560,7 +1560,7 @@ damage_win (Display *dpy, XDamageNotifyEvent *de)
 	
 	// First damage event we get, compute focus; we only want to focus damaged
 	// windows to have meaningful frames.
-	if (w->damage_sequence == 0)
+	if (w->gameID && w->damage_sequence == 0)
 		determine_and_apply_focus(dpy);
 	
 	w->damage_sequence = de->serial;

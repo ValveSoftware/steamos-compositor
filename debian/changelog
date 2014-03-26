@@ -1,3 +1,10 @@
+steamos-compositor (1.18) alchemist; urgency=low
+
+  * Don't re-compute focus if newly-damaged window isn't focusable.
+    This avoids extra computation when a Steam 2' chat window pops up.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 25 Mar 2014 19:40:02 -0700
+
 steamos-compositor (1.17.3) alchemist; urgency=low
 
   * Add udev_is_boot_vga, little tool to check which GPU drives the console.
