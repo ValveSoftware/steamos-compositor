@@ -1,3 +1,10 @@
+steamos-compositor (1.19) alchemist; urgency=medium
+
+  * Integrate LunarG patch to exclude MS visuals; they can't be used for TFP on
+    Mesa drivers and cause a black screen.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 09 May 2014 10:17:04 -0700
+
 steamos-compositor (1.18) alchemist; urgency=low
 
   * Don't re-compute focus if newly-damaged window isn't focusable.

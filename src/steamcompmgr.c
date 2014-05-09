@@ -431,6 +431,12 @@ GLXFBConfig win_fbconfig(Display *display, Window id)
 				continue;
 		}
 		
+		glXGetFBConfigAttrib(display, fbconfigs[i],
+							 GLX_SAMPLE_BUFFERS,
+							 &value);
+		if (value)
+			continue;
+		
 // 		glXGetFBConfigAttrib (display, fbconfigs[i],
 // 							  GLX_Y_INVERTED_EXT,
 // 						&value);
