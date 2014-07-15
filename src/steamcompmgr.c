@@ -606,6 +606,9 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 	if (!w)
 		return;
 	
+	if (w->isOverlay && !w->damaged)
+		return;
+	
 	win *mainOverlayWindow = find_win(dpy, currentOverlayWindow);
 
 	if (notificationMode && !mainOverlayWindow)

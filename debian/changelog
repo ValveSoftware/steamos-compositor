@@ -1,3 +1,10 @@
+steamos-compositor (1.20) alchemist; urgency=medium
+
+  * Fix cases where notifications/overlays would start getting presented before
+    the first frame had landed from Steam, resulting in a black flash.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 30 Jun 2014 15:54:03 -0700
+
 steamos-compositor (1.19) alchemist; urgency=medium
 
   * Integrate LunarG patch to exclude MS visuals; they can't be used for TFP on
