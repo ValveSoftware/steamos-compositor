@@ -103,6 +103,7 @@ typedef struct _win {
 	unsigned int requestedHeight;
 	Bool nudged;
 	Bool ignoreOverrideRedirect;
+	Bool validContents;
 	
 	Bool mouseMoved;
 } win;
@@ -483,6 +484,7 @@ teardown_win_resources (Display *dpy, win *w)
 	}
 	
 	w->damaged = 0;
+	w->validContents = False;
 }
 
 static void
@@ -606,7 +608,7 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 	if (!w)
 		return;
 	
-	if (w->isOverlay && !w->damaged)
+	if (w->isOverlay && !w->validContents)
 		return;
 	
 	win *mainOverlayWindow = find_win(dpy, currentOverlayWindow);
@@ -1329,6 +1331,8 @@ map_win (Display *dpy, Window id, unsigned long sequence)
 	w->damage_sequence = 0;
 	w->map_sequence = sequence;
 	
+	w->validContents = False;
+	
 	determine_and_apply_focus(dpy);
 }
 
@@ -1336,6 +1340,7 @@ static void
 finish_unmap_win (Display *dpy, win *w)
 {
 	w->damaged = 0;
+	w->validContents = False;
 	
 	if (w->pixmap && fadeOutWindow.id != w->id)
 	{
@@ -1391,6 +1396,7 @@ add_win (Display *dpy, Window id, Window prev, unsigned long sequence)
 		return;
 	}
 	new->damaged = 0;
+	new->validContents = False;
 	new->pixmap = None;
 	new->fbConfig = win_fbconfig(dpy, new->id);
 	if (new->fbConfig == None)
@@ -1564,6 +1570,8 @@ damage_win (Display *dpy, XDamageNotifyEvent *de)
 	if (!w)
 		return;
 	
+	w->validContents = True;
+
 	if (w->isOverlay && !w->opacity)
 		return;
 	
