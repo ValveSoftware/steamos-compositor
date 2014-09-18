@@ -542,7 +542,7 @@ paint_fake_cursor (Display *dpy, win *w)
 			cursorDataBuffer[i] = im->pixels[i];
 		
 		glBindTexture(GL_TEXTURE_2D, cursorTextureName);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cursorWidth, cursorHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, cursorDataBuffer);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, cursorWidth, cursorHeight, 0, GL_BGRA, GL_UNSIGNED_BYTE, cursorDataBuffer);
 		
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -552,8 +552,9 @@ paint_fake_cursor (Display *dpy, win *w)
 		cursorImageDirty = False;
 	}
 	
-	scaledCursorX = (win_x - w->a.x) * cursorScaleRatio * globalScaleRatio - cursorHotX + cursorOffsetX;
-	scaledCursorY = (win_y - w->a.y) * cursorScaleRatio * globalScaleRatio - cursorHotY + cursorOffsetY;
+	// Actual point on scaled screen where the cursor hotspot should be
+	scaledCursorX = (win_x - w->a.x) * cursorScaleRatio * globalScaleRatio + cursorOffsetX;
+	scaledCursorY = (win_y - w->a.y) * cursorScaleRatio * globalScaleRatio + cursorOffsetY;
 	
 	glEnable(GL_BLEND);
 	glBindTexture(GL_TEXTURE_2D, cursorTextureName);
@@ -563,8 +564,8 @@ paint_fake_cursor (Display *dpy, win *w)
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
 	win *mainOverlayWindow = find_win(dpy, currentOverlayWindow);
-	float displayCursorWidth = cursorWidth;
-	float displayCursorHeight = cursorHeight;
+	
+	float displayCursorScaleRatio = 1.0f;
 	
 	// Ensure the cursor looks the same size as in Steam or the overlay
 	if (mainOverlayWindow)
@@ -575,13 +576,18 @@ paint_fake_cursor (Display *dpy, win *w)
 		
 		float steamRatio = (steamScaleX < steamScaleY) ? steamScaleX : steamScaleY;
 		
-		displayCursorWidth *= steamRatio;
-		displayCursorHeight *= steamRatio;
+		displayCursorScaleRatio *= steamRatio;
 		
 		// Then any global scale, since it would also apply to the Steam window and its SW cursor
-		displayCursorWidth *= globalScaleRatio;
-		displayCursorHeight *= globalScaleRatio;
+		displayCursorScaleRatio *= globalScaleRatio;
 	}
+	
+	// Apply the cursor offset inside the texture using the display scale
+	scaledCursorX = scaledCursorX - (cursorHotX * displayCursorScaleRatio);
+	scaledCursorY = scaledCursorY - (cursorHotY * displayCursorScaleRatio);
+	
+	float displayCursorWidth = cursorWidth * displayCursorScaleRatio;
+	float displayCursorHeight = cursorHeight * displayCursorScaleRatio;
 	
 	glColor3f(1.0f, 1.0f, 1.0f);
 	
@@ -1081,7 +1087,6 @@ determine_and_apply_focus (Display *dpy)
 	gameFocused = False;
 	
 	unsigned long maxDamageSequence = 0;
-	unsigned long maxMapSequence = 0;
 	Bool usingOverrideRedirectWindow = False;
 	
 	if (unredirectedWindow != None)
@@ -1103,13 +1108,12 @@ determine_and_apply_focus (Display *dpy)
 		Bool windowIsOverrideRedirect = w->a.override_redirect && !w->ignoreOverrideRedirect;
 		
 		if (w->gameID && w->a.map_state == IsViewable && w->a.class == InputOutput &&
-			(w->damage_sequence > maxDamageSequence || w->map_sequence > maxMapSequence) &&
+			(w->damage_sequence > maxDamageSequence) &&
 			(!windowIsOverrideRedirect || !usingOverrideRedirectWindow))
 		{
 			focus = w;
 			gameFocused = True;
 			maxDamageSequence = w->damage_sequence;
-			maxMapSequence = w->map_sequence;
 			
 			if (windowIsOverrideRedirect)
 			{

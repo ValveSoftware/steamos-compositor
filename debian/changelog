@@ -1,3 +1,17 @@
+steamos-compositor (1.23) alchemist; urgency=medium
+
+  * Remove outdated pulseaudio line from SteamOS session script.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 17 Sep 2014 15:17:41 -0700
+
+steamos-compositor (1.22) alchemist; urgency=medium
+
+  * Fix issue where Planetary Annihilation window would not get displayed.
+  * Fix bug with cursor image sometimes not having the right colors.
+  * Fix bug with cursor sometimes not aiming where it should.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 16 Sep 2014 17:56:34 -0700
+
 steamos-compositor (1.21) alchemist; urgency=medium
 
   * Fix issue with 1.20 where overlay would appear flickery.
