@@ -1108,7 +1108,7 @@ determine_and_apply_focus (Display *dpy)
 		Bool windowIsOverrideRedirect = w->a.override_redirect && !w->ignoreOverrideRedirect;
 		
 		if (w->gameID && w->a.map_state == IsViewable && w->a.class == InputOutput &&
-			(w->damage_sequence > maxDamageSequence) &&
+			(w->damage_sequence >= maxDamageSequence) &&
 			(!windowIsOverrideRedirect || !usingOverrideRedirectWindow))
 		{
 			focus = w;

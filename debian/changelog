@@ -1,3 +1,9 @@
+steamos-compositor (1.24) alchemist; urgency=medium
+
+  * Fix an issue where XCOM wouldn't focus on startup.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Thu, 04 Dec 2014 17:56:55 -0800
+
 steamos-compositor (1.23) alchemist; urgency=medium
 
   * Remove outdated pulseaudio line from SteamOS session script.
