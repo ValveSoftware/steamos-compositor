@@ -1,3 +1,10 @@
+steamos-compositor (1.25) alchemist; urgency=medium
+
+  * Fix commandline argument descriptions and getopt call to match actual behavior.
+    Thanks to Wouter Wijsman for the fix!
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Thu, 18 Dec 2014 12:51:54 -0800
+
 steamos-compositor (1.24) alchemist; urgency=medium
 
   * Fix an issue where XCOM wouldn't focus on startup.
