@@ -1,0 +1,12 @@
+Source: steamos-compositor
+Maintainer: Pierre-Loup Griffais <pgriffais@valvesoftware.com>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 8), pkg-config, libxxf86vm-dev, libgl1-mesa-dev, libx11-dev, libxrender-dev, libxcomposite-dev, libxdamage-dev, libsdl-image1.2-dev, automake1.11, autoconf, libudev-dev
+
+Package: steamos-compositor
+Architecture: any
+Depends: libsdl-image1.2, libudev1, ${shlibs:Depends}, ${misc:Depends}
+Description: SteamOS Compositor
+ Provides graphics compositor services for the full-screen environment of SteamOS

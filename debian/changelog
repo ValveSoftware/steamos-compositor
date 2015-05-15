@@ -1,0 +1,189 @@
+steamos-compositor (1.27) brewmaster; urgency=medium
+
+  * depend on libudev1 instead of libudev0
+
+ -- John Vert <johnv@valvesoftware.com>  Fri, 15 May 2015 11:45:12 -0700
+
+steamos-compositor (1.26) brewmaster; urgency=medium
+
+  * compilation fixes
+
+ -- John Vert <johnv@valvesoftware.com>  Fri, 15 May 2015 11:29:10 -0700
+
+steamos-compositor (1.25) brewmaster; urgency=medium
+
+  * fix missing tab in debian/rules, change Build-Depends from automake to automake1.11
+
+ -- John Vert <johnv@valvesoftware.com>  Fri, 01 May 2015 16:25:26 -0700
+
+steamos-compositor (1.24) alchemist; urgency=medium
+
+  * Fix an issue where XCOM wouldn't focus on startup.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Thu, 04 Dec 2014 17:56:55 -0800
+
+steamos-compositor (1.23) alchemist; urgency=medium
+
+  * Remove outdated pulseaudio line from SteamOS session script.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 17 Sep 2014 15:17:41 -0700
+
+steamos-compositor (1.22) alchemist; urgency=medium
+
+  * Fix issue where Planetary Annihilation window would not get displayed.
+  * Fix bug with cursor image sometimes not having the right colors.
+  * Fix bug with cursor sometimes not aiming where it should.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 16 Sep 2014 17:56:34 -0700
+
+steamos-compositor (1.21) alchemist; urgency=medium
+
+  * Fix issue with 1.20 where overlay would appear flickery.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 23 Jul 2014 18:02:07 -0700
+
+steamos-compositor (1.20) alchemist; urgency=medium
+
+  * Fix cases where notifications/overlays would start getting presented before
+    the first frame had landed from Steam, resulting in a black flash.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 30 Jun 2014 15:54:03 -0700
+
+steamos-compositor (1.19) alchemist; urgency=medium
+
+  * Integrate LunarG patch to exclude MS visuals; they can't be used for TFP on
+    Mesa drivers and cause a black screen.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 09 May 2014 10:17:04 -0700
+
+steamos-compositor (1.18) alchemist; urgency=low
+
+  * Don't re-compute focus if newly-damaged window isn't focusable.
+    This avoids extra computation when a Steam 2' chat window pops up.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 25 Mar 2014 19:40:02 -0700
+
+steamos-compositor (1.17.3) alchemist; urgency=low
+
+  * Add udev_is_boot_vga, little tool to check which GPU drives the console.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 28 Feb 2014 18:39:57 -0800
+
+steamos-compositor (1.16) alchemist; urgency=low
+
+  * Only consider InputOutput windows for focus; this fixes "CID The Dummy"
+    and potentially other Wine-based ports. Thanks to Andrew Eikum for helping.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 24 Feb 2014 19:26:12 -0800
+
+steamos-compositor (1.15.2) alchemist; urgency=low
+
+  * Set _NET_WM_STATE_HIDDEN on out of focus windows and the overlays when
+    appropriate. Steam knows to stop its rendering loop when it sees this.
+  * Fix double cursor when a game is starting or exiting.
+  * Always request vertical synchronization, as some implementations might not
+    enable it by default.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 08 Jan 2014 13:57:13 -0800
+
+steamos-compositor (1.14) alchemist; urgency=low
+
+  * Fix possible race condition crash when getting Motion events on out-of-date
+    or yet-untracked windows.
+  * Present the overlay if it's there and a game is running, not only if it 
+    has a window. This ties in with work in Steam to have the overlay window
+    have the same lifetime as the application itself instead of its GL context.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 22 Nov 2013 16:02:08 -0800
+
+steamos-compositor (1.13) alchemist; urgency=low
+
+  * update copyright
+
+ -- John Vert <johnv@valvesoftware.com>  Wed, 20 Nov 2013 09:55:42 -0800
+
+steamos-compositor (1.12) alchemist; urgency=low
+
+  * Only honor size hints if they specify the same min and max size, since
+    "Long Live the Queen" sets a maximum size of 4k X 4k.
+  * Listen for pointer motion on all children of the focus window.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 13 Nov 2013 16:04:35 -0800
+
+steamos-compositor (1.11) alchemist; urgency=low
+
+  * The Bard's Tale has a single override redirect window; allow using it but
+    always prefer regular windows if they're available.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 13 Nov 2013 11:40:15 -0800
+
+steamos-compositor (1.10) alchemist; urgency=low
+
+  * Monitor mouse input of the child window the legacy SDL1.2 fullscreen.
+  * Clamp fake cursor image.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 12 Nov 2013 18:45:37 -0800
+
+steamos-compositor (1.9) alchemist; urgency=low
+
+  * Add SDL_image dependency for loadargbcursor.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Thu, 07 Nov 2013 14:58:43 -0800
+
+steamos-compositor (1.8) alchemist; urgency=low
+
+  * Rearm ignore warp count when hiding cursor to prevent spurious appearances.
+  * Work around X server bug 69198 by warping the cursor back into our window
+    if it escapes.
+  * Disable DPMS and the X screensaver for now in the SteamOS session.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 30 Oct 2013 09:47:18 -0700
+
+steamos-compositor (1.7) alchemist; urgency=low
+
+  * Add -enableremotecontrol to Steam commandline arguments.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Tue, 29 Oct 2013 19:56:56 -0700
+
+steamos-compositor (1.6) alchemist; urgency=low
+
+  * Fix audio by starting and publishing pulse session daemon before Steam
+    starts.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 28 Oct 2013 16:17:00 -0700
+
+steamos-compositor (1.5) alchemist; urgency=low
+
+  * Use Steam Big Picture cursor as the root window cursor.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 25 Oct 2013 18:59:41 -0700
+
+steamos-compositor (1.4) alchemist; urgency=low
+
+  * Fix running Steam and games that are higher resolution than the desktop.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 23 Oct 2013 16:17:58 -0700
+
+steamos-compositor (1.3) alchemist; urgency=low
+
+  * Add loadargbcursor
+
+ -- John Vert <johnv@valvesoftware.com>  Tue, 22 Oct 2013 20:10:16 -0700
+
+steamos-compositor (1.2) alchemist; urgency=low
+
+  * fix multiarch paths
+
+ -- John Vert <johnv@valvesoftware.com>  Tue, 22 Oct 2013 10:54:50 -0700
+
+steamos-compositor (1.1) alchemist; urgency=low
+
+  * Add steamos-session
+
+ -- John Vert <johnv@valvesoftware.com>  Tue, 22 Oct 2013 09:42:37 -0700
+
+steamos-compositor (1.0) alchemist; urgency=low
+
+  * Initial release. 
+
+ -- John Vert <johnv@valvesoftware.com>  Fri, 18 Oct 2013 16:03:00 -0700
