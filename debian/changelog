@@ -1,3 +1,10 @@
+steamos-compositor (1.28) brewmaster; urgency=medium
+
+  * Add set_hd_mode.sh helper script, run at start of session; helps get out
+    of problematic cases like 30hz refresh rates and non-HD modes
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 29 Jun 2015 13:39:14 -0700
+
 steamos-compositor (1.27) brewmaster; urgency=medium
 
   * depend on libudev1 instead of libudev0

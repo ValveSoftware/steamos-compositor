@@ -6,6 +6,8 @@ export HOMETEST_USER=steam
 export HOMETEST_DESKTOP_USER=desktop
 export HOMETEST_DESKTOP_SESSION=gnome
 
+/usr/bin/steamos/set_hd_mode.sh >> $HOME/set_hd_mode.log
+
 export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libmodeswitch_inhibitor.so:/usr/lib/i386-linux-gnu/libmodeswitch_inhibitor.so
 
 # Disable DPMS and screen blanking for now; it doesn't know about controller
