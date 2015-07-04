@@ -48,7 +48,8 @@
 #include <X11/extensions/xf86vmode.h>
 
 #define GL_GLEXT_PROTOTYPES
-#define GL_GLEXT_LEGACY
+#define GLX_GLEXT_LEGACY
+
 #include <GL/glx.h>
 #include "glext.h"
 #include "GL/glxext.h"
@@ -162,6 +163,10 @@ Bool			cursorVisible = True;
 Bool			hideCursorForScale;
 Bool			hideCursorForMovement;
 unsigned int	lastCursorMovedTime;
+
+Bool			focusDirty = False;
+
+unsigned long	damageSequence = 0;
 
 #define			CURSOR_HIDE_TIME 3000
 
@@ -1180,12 +1185,13 @@ determine_and_apply_focus (Display *dpy)
 
 	setup_pointer_barriers(dpy);
 	
-	if (gameFocused || !gamesRunningCount)
+	if (gameFocused || !gamesRunningCount && list[0].id != focus->id)
 	{
 		XRaiseWindow(dpy, focus->id);
-		XSetInputFocus(dpy, focus->id, RevertToNone, CurrentTime);
 	}
-	
+
+	XSetInputFocus(dpy, focus->id, RevertToNone, CurrentTime);
+
 	if (!focus->nudged)
 	{
 		XMoveWindow(dpy, focus->id, 1, 1);
@@ -1337,7 +1343,7 @@ map_win (Display *dpy, Window id, unsigned long sequence)
 	
 	w->validContents = False;
 	
-	determine_and_apply_focus(dpy);
+	focusDirty = True;
 }
 
 static void
@@ -1371,7 +1377,7 @@ unmap_win (Display *dpy, Window id, Bool fade)
 		return;
 	w->a.map_state = IsUnmapped;
 	
-	determine_and_apply_focus(dpy);
+	focusDirty = True;
 	
 	finish_unmap_win (dpy, w);
 }
@@ -1442,7 +1448,7 @@ add_win (Display *dpy, Window id, Window prev, unsigned long sequence)
 	if (new->a.map_state == IsViewable)
 		map_win (dpy, id, sequence);
 	
-	determine_and_apply_focus (dpy);
+	focusDirty = True;
 }
 
 static void
@@ -1472,9 +1478,9 @@ restack_win (Display *dpy, win *w, Window new_above)
 		}
 		w->next = *prev;
 		*prev = w;
+		
+		focusDirty = True;
 	}
-	
-	determine_and_apply_focus(dpy);
 }
 
 static void
@@ -1509,7 +1515,7 @@ configure_win (Display *dpy, XConfigureEvent *ce)
 	w->a.override_redirect = ce->override_redirect;
 	restack_win (dpy, w, ce->above);
 	
-	determine_and_apply_focus (dpy);
+	focusDirty = True;
 }
 
 static void
@@ -1560,7 +1566,7 @@ destroy_win (Display *dpy, Window id, Bool gone, Bool fade)
 		currentOverlayWindow = None;
 	if (currentNotificationWindow == id && gone)
 		currentNotificationWindow = None;
-	determine_and_apply_focus(dpy);
+	focusDirty = True;
 
 	finish_destroy_win (dpy, id, gone);
 }
@@ -1582,14 +1588,14 @@ damage_win (Display *dpy, XDamageNotifyEvent *de)
 	// First damage event we get, compute focus; we only want to focus damaged
 	// windows to have meaningful frames.
 	if (w->gameID && w->damage_sequence == 0)
-		determine_and_apply_focus(dpy);
+		focusDirty = True;
 	
-	w->damage_sequence = de->serial;
+	w->damage_sequence = damageSequence++;
 	
 	// If we just passed the focused window, we might be eliglible to take over
 	if (focus && focus != w && w->gameID &&
 		w->damage_sequence > focus->damage_sequence)
-		determine_and_apply_focus(dpy);
+		focusDirty = True;
 		
 	w->damaged = 1;
 	
@@ -1657,11 +1663,21 @@ usage (char *program)
 	fprintf (stderr, "usage: %s [options]\n", program);
 	fprintf (stderr, "Options\n");
 	fprintf (stderr, "   -d display\n      Specifies which display should be managed.\n");
-	fprintf (stderr, "   -n\n      Don't perform any redirection or compositing.\n");
+	fprintf (stderr, "   -r radius\n      Specifies the blur radius for client-side shadows. (default 12)\n");
+	fprintf (stderr, "   -o opacity\n      Specifies the translucency for client-side shadows. (default .75)\n");
+	fprintf (stderr, "   -l left-offset\n      Specifies the left offset for client-side shadows. (default -15)\n");
+	fprintf (stderr, "   -t top-offset\n      Specifies the top offset for clinet-side shadows. (default -15)\n");
+	fprintf (stderr, "   -I fade-in-step\n      Specifies the opacity change between steps while fading in. (default 0.028)\n");
+	fprintf (stderr, "   -O fade-out-step\n      Specifies the opacity change between steps while fading out. (default 0.03)\n");
+	fprintf (stderr, "   -D fade-delta-time\n      Specifies the time between steps in a fade in milliseconds. (default 10)\n");
+	fprintf (stderr, "   -a\n      Use automatic server-side compositing. Faster, but no special effects.\n");
+	fprintf (stderr, "   -c\n      Draw client-side shadows with fuzzy edges.\n");
+	fprintf (stderr, "   -C\n      Avoid drawing shadows on dock/panel windows.\n");
+	fprintf (stderr, "   -f\n      Fade windows in/out when opening/closing.\n");
+	fprintf (stderr, "   -F\n      Fade windows during opacity changes.\n");
+	fprintf (stderr, "   -n\n      Normal client-side compositing with transparency support\n");
+	fprintf (stderr, "   -s\n      Draw server-side shadows with sharp edges.\n");
 	fprintf (stderr, "   -S\n      Enable synchronous operation (for debugging).\n");
-	fprintf (stderr, "   -v\n      Display debug information on screen.\n");
-	fprintf (stderr, "   -V\n      Log events to standard output.\n");
-	fprintf (stderr, "   -u\n      Allow unredirection of windows.\n");
 	exit (1);
 }
 
@@ -1751,7 +1767,7 @@ main (int argc, char **argv)
 	char	    *display = NULL;
 	int		    o;
 	
-	while ((o = getopt (argc, argv, "d:nuSvV")) != -1)
+	while ((o = getopt (argc, argv, "D:I:O:d:r:o:l:t:scnufFCaSvV")) != -1)
 	{
 		switch (o) {
 			case 'd':
@@ -1970,6 +1986,8 @@ main (int argc, char **argv)
 	
 	for (;;)
 	{
+		focusDirty = False;
+
 		do {
 			XNextEvent (dpy, &ev);
 			if ((ev.type & 0x7f) != KeymapNotify)
@@ -2029,7 +2047,7 @@ main (int argc, char **argv)
 							if (w)
 							{
 								get_size_hints(dpy, w);
-								determine_and_apply_focus(dpy);
+								focusDirty = True;
 							}
 						}
 					}
@@ -2074,7 +2092,7 @@ main (int argc, char **argv)
 						if (w)
 						{
 							w->isSteam = get_prop(dpy, w->id, steamAtom, 0);
-							determine_and_apply_focus(dpy);
+							focusDirty = True;
 						}
 					}
 					if (ev.xproperty.atom == gameAtom)
@@ -2083,7 +2101,7 @@ main (int argc, char **argv)
 						if (w)
 						{
 							w->gameID = get_prop(dpy, w->id, gameAtom, 0);
-							determine_and_apply_focus(dpy);
+							focusDirty = True;
 						}
 					}
 					if (ev.xproperty.atom == overlayAtom)
@@ -2092,7 +2110,7 @@ main (int argc, char **argv)
 						if (w)
 						{
 							w->isOverlay = get_prop(dpy, w->id, overlayAtom, 0);
-							determine_and_apply_focus(dpy);
+							focusDirty = True;
 
 							// Overlay windows need a RGBA pixmap, so destroy the old one there
 							// It'll be reallocated as RGBA in ensure_win_resources()
@@ -2108,14 +2126,14 @@ main (int argc, char **argv)
 						if (w)
 						{
 							get_size_hints(dpy, w);
-							determine_and_apply_focus(dpy);
+							focusDirty = True;
 						}
 					}
 					if (ev.xproperty.atom == gamesRunningAtom)
 					{
 						gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
 						
-						determine_and_apply_focus(dpy);
+						focusDirty = True;
 					}
 					if (ev.xproperty.atom == screenScaleAtom)
 					{
@@ -2126,7 +2144,7 @@ main (int argc, char **argv)
 						if (w = find_win(dpy, currentFocusWindow))
 							w->damaged = 1;
 						
-						determine_and_apply_focus(dpy);
+						focusDirty = True;
 					}
 					break;
 				case ClientMessage:
@@ -2138,7 +2156,7 @@ main (int argc, char **argv)
 						{
 							w->isFullscreen = ev.xclient.data.l[0];
 							
-							determine_and_apply_focus(dpy);
+							focusDirty = True;
 						}
 					}
 					break;
@@ -2197,6 +2215,9 @@ main (int argc, char **argv)
 					break;
 			}
 		} while (QLength (dpy));
+		
+		if (focusDirty == True)
+			determine_and_apply_focus(dpy);
 
 		if (doRender)
 		{

@@ -1,9 +1,35 @@
-steamos-compositor (1.25) alchemist; urgency=medium
+steamos-compositor (1.29) brewmaster; urgency=medium
 
-  * Fix commandline argument descriptions and getopt call to match actual behavior.
-    Thanks to Wouter Wijsman for the fix!
+  * Tweaking focus and display logic in steamcompmgr to avoid event storms on newer
+    X servers. It looks like Damage semantics changed on Xserver 1.16 and we were
+    getting unexpected events after XDamageSubtract().
 
- -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Thu, 18 Dec 2014 12:51:54 -0800
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 03 Jul 2015 19:36:36 -0700
+
+steamos-compositor (1.28) brewmaster; urgency=medium
+
+  * Add set_hd_mode.sh helper script, run at start of session; helps get out
+    of problematic cases like 30hz refresh rates and non-HD modes
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 29 Jun 2015 13:39:14 -0700
+
+steamos-compositor (1.27) brewmaster; urgency=medium
+
+  * depend on libudev1 instead of libudev0
+
+ -- John Vert <johnv@valvesoftware.com>  Fri, 15 May 2015 11:45:12 -0700
+
+steamos-compositor (1.26) brewmaster; urgency=medium
+
+  * compilation fixes
+
+ -- John Vert <johnv@valvesoftware.com>  Fri, 15 May 2015 11:29:10 -0700
+
+steamos-compositor (1.25) brewmaster; urgency=medium
+
+  * fix missing tab in debian/rules, change Build-Depends from automake to automake1.11
+
+ -- John Vert <johnv@valvesoftware.com>  Fri, 01 May 2015 16:25:26 -0700
 
 steamos-compositor (1.24) alchemist; urgency=medium
 
