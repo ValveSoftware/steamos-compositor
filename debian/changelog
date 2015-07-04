@@ -1,3 +1,11 @@
+steamos-compositor (1.29) brewmaster; urgency=medium
+
+  * Tweaking focus and display logic in steamcompmgr to avoid event storms on newer
+    X servers. It looks like Damage semantics changed on Xserver 1.16 and we were
+    getting unexpected events after XDamageSubtract().
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Fri, 03 Jul 2015 19:36:36 -0700
+
 steamos-compositor (1.28) brewmaster; urgency=medium
 
   * Add set_hd_mode.sh helper script, run at start of session; helps get out
