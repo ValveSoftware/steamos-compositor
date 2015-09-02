@@ -1,3 +1,12 @@
+steamos-compositor (1.30) brewmaster; urgency=medium
+
+  * Added preliminary support for screen magnification.
+  * Increase cursor hiding time to 10 seconds.
+  * Fix bug while cursor would hide even when moving the mouse if a button was
+    held.
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Wed, 02 Sep 2015 16:22:38 -0700
+
 steamos-compositor (1.29) brewmaster; urgency=medium
 
   * Tweaking focus and display logic in steamcompmgr to avoid event storms on newer

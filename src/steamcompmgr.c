@@ -147,6 +147,8 @@ Bool			gameFocused;
 
 unsigned int 	gamesRunningCount;
 
+float			overscanScaleRatio = 1.0;
+float			zoomScaleRatio = 1.0;
 float			globalScaleRatio = 1.0f;
 
 Bool			focusedWindowNeedsScale;
@@ -168,7 +170,7 @@ Bool			focusDirty = False;
 
 unsigned long	damageSequence = 0;
 
-#define			CURSOR_HIDE_TIME 3000
+#define			CURSOR_HIDE_TIME 10000
 
 Bool			gotXError = False;
 
@@ -183,6 +185,7 @@ static Atom		steamAtom;
 static Atom		gameAtom;
 static Atom		overlayAtom;
 static Atom		gamesRunningAtom;
+static Atom		screenZoomAtom;
 static Atom		screenScaleAtom;
 static Atom		opacityAtom;
 static Atom		winTypeAtom;
@@ -208,6 +211,7 @@ GLXContext glContext;
 #define OVERLAY_PROP		"STEAM_OVERLAY"
 #define GAMES_RUNNING_PROP 	"STEAM_GAMES_RUNNING"
 #define SCREEN_SCALE_PROP	"STEAM_SCREEN_SCALE"
+#define SCREEN_MAGNIFICATION_PROP	"STEAM_SCREEN_MAGNIFICATION"
 
 #define TRANSLUCENT	0x00000000
 #define OPAQUE		0xffffffff
@@ -515,6 +519,54 @@ ensure_win_resources (Display *dpy, win *w)
 }
 
 static void
+apply_cursor_state (Display *dpy)
+{
+	Bool newCursorVisibility = True;
+	
+	if (hideCursorForScale || hideCursorForMovement)
+		newCursorVisibility = False;
+	
+	if (newCursorVisibility != cursorVisible)
+	{
+		cursorVisible = newCursorVisibility;
+		
+		if (cursorVisible)
+			XFixesShowCursor(dpy, DefaultRootWindow(dpy));
+		else
+			XFixesHideCursor(dpy, DefaultRootWindow(dpy));
+	}
+}
+
+static void
+handle_mouse_movement(Display *dpy, int posX, int posY)
+{
+	// Some stuff likes to warp in-place
+	if (cursorX == posX && cursorY == posY)
+		return;
+	
+	cursorX = posX;
+	cursorY = posY;
+	
+	win *w = find_win(dpy, currentFocusWindow);
+	
+	if (w && focusedWindowNeedsScale && gameFocused)
+	{
+		w->damaged = 1;
+	}
+	
+	// Ignore the first events as it's likely to be non-user-initiated warps
+	// Account for one warp from us, one warp from the app and one warp from
+	// the toolkit.
+	if (w && (w->mouseMoved++ < 3))
+		return;
+	
+	lastCursorMovedTime = get_time_in_milliseconds();
+	
+	hideCursorForMovement = False;
+	apply_cursor_state(dpy);
+}
+
+static void
 paint_fake_cursor (Display *dpy, win *w)
 {
 	float scaledCursorX, scaledCursorY;
@@ -527,6 +579,8 @@ paint_fake_cursor (Display *dpy, win *w)
 	XQueryPointer(dpy, DefaultRootWindow(dpy), &window_returned,
 					&child, &root_x, &root_y, &win_x, &win_y,
 					&mask_return);
+	
+	handle_mouse_movement( dpy, root_x, root_y );
 	
 	// Also need new texture
 	if (cursorImageDirty)
@@ -560,6 +614,12 @@ paint_fake_cursor (Display *dpy, win *w)
 	// Actual point on scaled screen where the cursor hotspot should be
 	scaledCursorX = (win_x - w->a.x) * cursorScaleRatio * globalScaleRatio + cursorOffsetX;
 	scaledCursorY = (win_y - w->a.y) * cursorScaleRatio * globalScaleRatio + cursorOffsetY;
+	
+	if ( zoomScaleRatio != 1.0 )
+	{
+		scaledCursorX += ((w->a.width / 2) - win_x) * cursorScaleRatio * globalScaleRatio;
+		scaledCursorY += ((w->a.height / 2) - win_y) * cursorScaleRatio * globalScaleRatio;
+	}
 	
 	glEnable(GL_BLEND);
 	glBindTexture(GL_TEXTURE_2D, cursorTextureName);
@@ -651,6 +711,12 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 		
 		drawXOffset = (root_width - sourceWidth * currentScaleRatio) / 2.0f;
 		drawYOffset = (root_height - sourceHeight * currentScaleRatio) / 2.0f;
+		
+		if ( zoomScaleRatio != 1.0 )
+		{
+			drawXOffset += ((sourceWidth / 2) - cursorX) * currentScaleRatio;
+			drawYOffset += ((sourceHeight / 2) - cursorY) * currentScaleRatio;
+		}
 		
 		isScaling = True;
 	}
@@ -1005,25 +1071,6 @@ paint_all (Display *dpy)
 		unredirectedWindow = currentFocusWindow;
 		teardown_win_resources(dpy, w);
 		XCompositeUnredirectWindow(dpy, unredirectedWindow, CompositeRedirectManual);
-	}
-}
-
-static void
-apply_cursor_state (Display *dpy)
-{
-	Bool newCursorVisibility = True;
-
-	if (hideCursorForScale || hideCursorForMovement)
-		newCursorVisibility = False;
-	
-	if (newCursorVisibility != cursorVisible)
-	{
-		cursorVisible = newCursorVisibility;
-		
-		if (cursorVisible)
-			XFixesShowCursor(dpy, DefaultRootWindow(dpy));
-		else
-			XFixesHideCursor(dpy, DefaultRootWindow(dpy));
 	}
 }
 
@@ -1852,6 +1899,7 @@ main (int argc, char **argv)
 	opacityAtom = XInternAtom (dpy, OPACITY_PROP, False);
 	gamesRunningAtom = XInternAtom (dpy, GAMES_RUNNING_PROP, False);
 	screenScaleAtom = XInternAtom (dpy, SCREEN_SCALE_PROP, False);
+	screenZoomAtom = XInternAtom (dpy, SCREEN_MAGNIFICATION_PROP, False);
 	winTypeAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE", False);
 	winDesktopAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
 	winDockAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DOCK", False);
@@ -1980,7 +2028,10 @@ main (int argc, char **argv)
 	apply_cursor_state(dpy);
 	
 	gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
-	globalScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+	overscanScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+	zoomScaleRatio = get_prop(dpy, root, screenZoomAtom, 0xFFFF) / (double)0xFFFF;
+	
+	globalScaleRatio = overscanScaleRatio * zoomScaleRatio;
 	
 	determine_and_apply_focus(dpy);
 	
@@ -2137,7 +2188,22 @@ main (int argc, char **argv)
 					}
 					if (ev.xproperty.atom == screenScaleAtom)
 					{
-						globalScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+						overscanScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+						
+						globalScaleRatio = overscanScaleRatio * zoomScaleRatio;
+						
+						win *w;
+						
+						if (w = find_win(dpy, currentFocusWindow))
+							w->damaged = 1;
+						
+						focusDirty = True;
+					}
+					if (ev.xproperty.atom == screenZoomAtom)
+					{
+						zoomScaleRatio = get_prop(dpy, root, screenZoomAtom, 0xFFFF) / (double)0xFFFF;
+						
+						globalScaleRatio = overscanScaleRatio * zoomScaleRatio;
 						
 						win *w;
 						
@@ -2176,30 +2242,7 @@ main (int argc, char **argv)
 					win * w = find_win(dpy, ev.xmotion.window);
 					if (w && w->id == currentFocusWindow)
 					{
-						// Some stuff likes to warp in-place
-						if (cursorX == ev.xmotion.x && cursorY == ev.xmotion.y)
-							break;
-
-						cursorX = ev.xmotion.x;
-						cursorY = ev.xmotion.y;
-						
-						win *w = find_win(dpy, currentFocusWindow);
-
-						if (w && focusedWindowNeedsScale && gameFocused)
-						{
-							w->damaged = 1;
-						}
-						
-						// Ignore the first events as it's likely to be non-user-initiated warps
-						// Account for one warp from us, one warp from the app and one warp from
-						// the toolkit.
-						if (w && (w->mouseMoved++ < 3))
-							break;
-						
-						lastCursorMovedTime = get_time_in_milliseconds();
-						
-						hideCursorForMovement = False;
-						apply_cursor_state(dpy);
+						handle_mouse_movement( dpy, ev.xmotion.x, ev.xmotion.y );
 					}
 					break;
 				}
