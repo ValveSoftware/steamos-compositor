@@ -1,3 +1,10 @@
+steamos-compositor (1.32) brewmaster; urgency=medium
+
+  * Fix a bug where cursor would be auto-hidden even when buttons held
+  * Show cursor if a button gets clicked while it's hidden
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Mon, 30 Nov 2015 15:23:18 -0800
+
 steamos-compositor (1.31) brewmaster; urgency=medium
 
   * Added support for one than more overlay layers; most opaque one wins.

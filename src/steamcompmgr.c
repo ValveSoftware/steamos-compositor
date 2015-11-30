@@ -2289,6 +2289,22 @@ main (int argc, char **argv)
 			if (fadeOutWindow.id)
 				XSendEvent(dpy, ourWindow, True, ExposureMask, &exposeEvent);
 			
+			Window window_returned, child;
+			int root_x, root_y;
+			int win_x, win_y;
+			unsigned int mask_return;
+			
+			XQueryPointer(dpy, DefaultRootWindow(dpy), &window_returned,
+						  &child, &root_x, &root_y, &win_x, &win_y,
+						&mask_return);
+			
+			if ( mask_return & ( Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask ) )
+			{
+				hideCursorForMovement = False;
+				lastCursorMovedTime = get_time_in_milliseconds();
+				apply_cursor_state(dpy);
+			}
+			
 			if (!hideCursorForMovement &&
 				(get_time_in_milliseconds() - lastCursorMovedTime) > CURSOR_HIDE_TIME)
 			{
