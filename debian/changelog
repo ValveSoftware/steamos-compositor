@@ -1,3 +1,9 @@
+steamos-compositor (1.33) brewmaster; urgency=medium
+
+  * Prefer HDMI/DP over other types of displays. (patch by Coucouf)
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Thu, 24 Mar 2016 14:25:56 -0700
+
 steamos-compositor (1.32) brewmaster; urgency=medium
 
   * Fix a bug where cursor would be auto-hidden even when buttons held
