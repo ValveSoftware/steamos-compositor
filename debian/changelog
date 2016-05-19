@@ -1,3 +1,9 @@
+steamos-compositor (1.34) brewmaster; urgency=medium
+
+  * Small tweak to loadargb_cursor to better handle non-premult cursors
+
+ -- Pierre-Loup A. Griffais <pgriffais@valvesoftware.com>  Thu, 19 May 2016 15:52:35 -0700
+
 steamos-compositor (1.33) brewmaster; urgency=medium
 
   * Prefer HDMI/DP over other types of displays. (patch by Coucouf)
