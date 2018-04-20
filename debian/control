@@ -7,6 +7,7 @@ Build-Depends:
  autoconf,
  automake1.11,
  debhelper (>= 8),
+ dh-autoreconf,
  libgl1-mesa-dev,
  libsdl-image1.2-dev,
  libudev-dev,

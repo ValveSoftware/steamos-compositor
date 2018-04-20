@@ -5,6 +5,7 @@ steamos-compositor (1.35) UNRELEASED; urgency=medium
   * Remove generated files
   * debian/.gitignore: Add
   * debian: Wrap (build-)dependencies one per line
+  * debian: Use dh-autoreconf
 
  -- Simon McVittie <smcv@collabora.com>  Fri, 20 Apr 2018 15:15:24 +0100
 
