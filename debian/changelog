@@ -3,6 +3,7 @@ steamos-compositor (1.35) UNRELEASED; urgency=medium
   * debian: Remove generated files by running dh_clean
   * .gitignore: Add
   * Remove generated files
+  * debian/.gitignore: Add
 
  -- Simon McVittie <smcv@collabora.com>  Fri, 20 Apr 2018 15:15:24 +0100
 
