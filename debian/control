@@ -5,7 +5,7 @@ Priority: optional
 Standards-Version: 3.9.3
 Build-Depends:
  autoconf,
- automake1.11,
+ automake,
  debhelper (>= 8),
  dh-autoreconf,
  libgl1-mesa-dev,
