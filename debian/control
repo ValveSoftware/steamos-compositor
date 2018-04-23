@@ -6,7 +6,7 @@ Standards-Version: 3.9.3
 Build-Depends:
  autoconf,
  automake,
- debhelper (>= 8),
+ debhelper (>= 9~),
  dh-autoreconf,
  libgl1-mesa-dev,
  libsdl-image1.2-dev,

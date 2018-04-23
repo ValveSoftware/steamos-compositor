@@ -7,6 +7,7 @@ steamos-compositor (1.35) UNRELEASED; urgency=medium
   * debian: Wrap (build-)dependencies one per line
   * debian: Use dh-autoreconf
   * debian: Use default version of automake
+  * debian: Use debhelper 9 compat level
 
  -- Simon McVittie <smcv@collabora.com>  Fri, 20 Apr 2018 15:15:24 +0100
 
