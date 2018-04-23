@@ -20,8 +20,6 @@ Build-Depends:
 Package: steamos-compositor
 Architecture: any
 Depends:
- libsdl-image1.2,
- libudev1,
  ${misc:Depends},
  ${shlibs:Depends},
 Description: SteamOS Compositor

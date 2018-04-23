@@ -10,6 +10,8 @@ steamos-compositor (1.35) UNRELEASED; urgency=medium
     - Uses dh-autoreconf by default
   * debian: Don't pass discouraged --ignore-missing-info option to
     dpkg-shlibdeps
+  * debian: Remove unnecessary explicit dependencies on libsdl-image1.2
+    and libudev1. ${shlibs:Depends} implies these.
 
  -- Simon McVittie <smcv@collabora.com>  Fri, 20 Apr 2018 15:15:24 +0100
 
