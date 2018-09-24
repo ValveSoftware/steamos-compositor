@@ -1,3 +1,20 @@
+steamos-compositor (1.35) UNRELEASED; urgency=medium
+
+  * debian: Remove generated files by running dh_clean
+  * .gitignore: Add
+  * Remove generated files
+  * debian/.gitignore: Add
+  * debian: Wrap (build-)dependencies one per line
+  * debian: Use default version of automake
+  * debian: Use debhelper 10 compat level
+    - Uses dh-autoreconf by default
+  * debian: Don't pass discouraged --ignore-missing-info option to
+    dpkg-shlibdeps
+  * debian: Remove unnecessary explicit dependencies on libsdl-image1.2
+    and libudev1. ${shlibs:Depends} implies these.
+
+ -- Simon McVittie <smcv@collabora.com>  Fri, 20 Apr 2018 15:15:24 +0100
+
 steamos-compositor (1.34) brewmaster; urgency=medium
 
   * Small tweak to loadargb_cursor to better handle non-premult cursors

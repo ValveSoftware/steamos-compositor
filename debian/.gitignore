@@ -1,0 +1,8 @@
+/*-stamp
+/*.debhelper
+/*.log
+/*.substvars
+/autoreconf*
+/files
+/steamos-compositor/
+/tmp/
