@@ -15,6 +15,18 @@ function contains() {
     return 1
 }
 
+# This function echoes the first element from first argument array, matching a
+# prefix in the order given by second argument array.
+function first_by_prefix_order() {
+    local values=${!1}
+    local prefix_order=${!2}
+    for prefix in ${prefix_order[@]} ; do
+        for val in ${values[@]} ; do
+            if [[ $val =~ ^$prefix ]] ; then echo $val ; return ; fi
+        done
+    done
+}
+
 GOODMODES=("1920x1080" "1280x720")
 GOODRATES=("60.0" "59.9") # CEA modes guarantee or one the other, but not both?
 
@@ -22,12 +34,19 @@ GOODRATES=("60.0" "59.9") # CEA modes guarantee or one the other, but not both?
 date
 xrandr --verbose
 
-# Improve this later to prioritize HDMI/DP over LVDS; for now, use first output
-OUTPUT_NAME=`xrandr | grep ' connected' | head -n1 | cut -f1 -d' '`
+# List connected outputs
+ALL_OUTPUT_NAMES=$(xrandr | grep ' connected' | cut -f1 -d' ')
+# Default to first connected output
+OUTPUT_NAME=$(echo $ALL_OUTPUT_NAMES | cut -f1 -d' ')
 
-ALL_OUTPUT_NAMES=`xrandr | grep ' connected' | cut -f1 -d' '`
+# If any is connected, give priority to HDMI then DP
+OUTPUT_PRIORITY="HDMI DP"
+PREFERRED_OUTPUT=$(first_by_prefix_order ALL_OUTPUT_NAMES[@] OUTPUT_PRIORITY[@])
+if [[ -n "$PREFERRED_OUTPUT" ]] ; then
+    OUTPUT_NAME=$PREFERRED_OUTPUT
+fi
 
-# Disable everything but the first output
+# Disable everything but the selected output
 for i in $ALL_OUTPUT_NAMES; do
 	if [ "$i" != "$OUTPUT_NAME" ]; then
 		xrandr --output "$i" --off

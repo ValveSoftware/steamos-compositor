@@ -57,13 +57,13 @@
 PFNGLXSWAPINTERVALEXTPROC				__pointer_to_glXSwapIntervalEXT;
 
 void (*__pointer_to_glXBindTexImageEXT) (Display     *display, 
-						 GLXDrawable drawable, 
-						 int         buffer,
-						 const int   *attrib_list);
+										 GLXDrawable drawable, 
+										 int         buffer,
+										 const int   *attrib_list);
 
 void (*__pointer_to_glXReleaseTexImageEXT) (Display     *display, 
-							GLXDrawable drawable, 
-							int         buffer);
+											GLXDrawable drawable, 
+											int         buffer);
 
 PFNGLGENPATHSNVPROC 					__pointer_to_glGenPathsNV;
 PFNGLPATHGLYPHRANGENVPROC				__pointer_to_glPathGlyphRangeNV;
@@ -147,6 +147,8 @@ Bool			gameFocused;
 
 unsigned int 	gamesRunningCount;
 
+float			overscanScaleRatio = 1.0;
+float			zoomScaleRatio = 1.0;
 float			globalScaleRatio = 1.0f;
 
 Bool			focusedWindowNeedsScale;
@@ -168,7 +170,7 @@ Bool			focusDirty = False;
 
 unsigned long	damageSequence = 0;
 
-#define			CURSOR_HIDE_TIME 3000
+#define			CURSOR_HIDE_TIME 10000
 
 Bool			gotXError = False;
 
@@ -183,6 +185,7 @@ static Atom		steamAtom;
 static Atom		gameAtom;
 static Atom		overlayAtom;
 static Atom		gamesRunningAtom;
+static Atom		screenZoomAtom;
 static Atom		screenScaleAtom;
 static Atom		opacityAtom;
 static Atom		winTypeAtom;
@@ -208,6 +211,7 @@ GLXContext glContext;
 #define OVERLAY_PROP		"STEAM_OVERLAY"
 #define GAMES_RUNNING_PROP 	"STEAM_GAMES_RUNNING"
 #define SCREEN_SCALE_PROP	"STEAM_SCREEN_SCALE"
+#define SCREEN_MAGNIFICATION_PROP	"STEAM_SCREEN_MAGNIFICATION"
 
 #define TRANSLUCENT	0x00000000
 #define OPAQUE		0xffffffff
@@ -227,27 +231,27 @@ static void
 init_text_rendering(void)
 {
 	textPathObjects = __pointer_to_glGenPathsNV(256);
-
+	
 	__pointer_to_glPathGlyphRangeNV(textPathObjects,
 									GL_STANDARD_FONT_NAME_NV, "Sans", GL_BOLD_BIT_NV,
-									0, 256, GL_USE_MISSING_GLYPH_NV, ~0, 30);
+								 0, 256, GL_USE_MISSING_GLYPH_NV, ~0, 30);
 	
 	/* Query font and glyph metrics. */
 	GLfloat font_data[4];
 	__pointer_to_glGetPathMetricRangeNV(GL_FONT_Y_MIN_BOUNDS_BIT_NV |
-										GL_FONT_Y_MAX_BOUNDS_BIT_NV |
-										GL_FONT_UNDERLINE_POSITION_BIT_NV |
-										GL_FONT_UNDERLINE_THICKNESS_BIT_NV,
-										textPathObjects + ' ', 1, 4 * sizeof(GLfloat),
+	GL_FONT_Y_MAX_BOUNDS_BIT_NV |
+	GL_FONT_UNDERLINE_POSITION_BIT_NV |
+	GL_FONT_UNDERLINE_THICKNESS_BIT_NV,
+	textPathObjects + ' ', 1, 4 * sizeof(GLfloat),
 										font_data);
 	
 	textYMin = font_data[0];
 	textYMax = font_data[1];
-
+	
 	__pointer_to_glGetPathMetricRangeNV(GL_GLYPH_HORIZONTAL_BEARING_ADVANCE_BIT_NV,
 										textPathObjects, 256,
-										0,
-										&textXAdvance[0]);
+									 0,
+									 &textXAdvance[0]);
 }
 
 static XserverRegion
@@ -399,7 +403,7 @@ GLXFBConfig win_fbconfig(Display *display, Window id)
 	GLXFBConfig *fbconfigs;
 	int nfbconfigs, i, value;
 	XVisualInfo *visinfo;
-
+	
 	attrib.visual = 0x0;
 	XGetWindowAttributes (display, id, &attrib);
 	
@@ -439,23 +443,23 @@ GLXFBConfig win_fbconfig(Display *display, Window id)
 		
 		glXGetFBConfigAttrib(display, fbconfigs[i],
 							 GLX_SAMPLE_BUFFERS,
-							 &value);
+					   &value);
 		if (value)
 			continue;
 		
-// 		glXGetFBConfigAttrib (display, fbconfigs[i],
-// 							  GLX_Y_INVERTED_EXT,
-// 						&value);
-// 		if (value == True)
-// 		{
-// 			top = 0.0f;
-// 			bottom = 1.0f;
-// 		}
-// 		else
-// 		{
-// 			top = 1.0f;
-// 			bottom = 0.0f;
-// 		}
+		// 		glXGetFBConfigAttrib (display, fbconfigs[i],
+		// 							  GLX_Y_INVERTED_EXT,
+		// 						&value);
+		// 		if (value == True)
+		// 		{
+		// 			top = 0.0f;
+		// 			bottom = 1.0f;
+		// 		}
+		// 		else
+		// 		{
+		// 			top = 1.0f;
+		// 			bottom = 0.0f;
+		// 		}
 		
 		break;
 	}
@@ -497,7 +501,7 @@ ensure_win_resources (Display *dpy, win *w)
 {
 	if (!w || !w->fbConfig)
 		return;
-
+	
 	if (!w->pixmap)
 	{
 		w->pixmap = XCompositeNameWindowPixmap (dpy, w->id);
@@ -515,6 +519,54 @@ ensure_win_resources (Display *dpy, win *w)
 }
 
 static void
+apply_cursor_state (Display *dpy)
+{
+	Bool newCursorVisibility = True;
+	
+	if (hideCursorForScale || hideCursorForMovement)
+		newCursorVisibility = False;
+	
+	if (newCursorVisibility != cursorVisible)
+	{
+		cursorVisible = newCursorVisibility;
+		
+		if (cursorVisible)
+			XFixesShowCursor(dpy, DefaultRootWindow(dpy));
+		else
+			XFixesHideCursor(dpy, DefaultRootWindow(dpy));
+	}
+}
+
+static void
+handle_mouse_movement(Display *dpy, int posX, int posY)
+{
+	// Some stuff likes to warp in-place
+	if (cursorX == posX && cursorY == posY)
+		return;
+	
+	cursorX = posX;
+	cursorY = posY;
+	
+	win *w = find_win(dpy, currentFocusWindow);
+	
+	if (w && focusedWindowNeedsScale && gameFocused)
+	{
+		w->damaged = 1;
+	}
+	
+	// Ignore the first events as it's likely to be non-user-initiated warps
+	// Account for one warp from us, one warp from the app and one warp from
+	// the toolkit.
+	if (w && (w->mouseMoved++ < 3))
+		return;
+	
+	lastCursorMovedTime = get_time_in_milliseconds();
+	
+	hideCursorForMovement = False;
+	apply_cursor_state(dpy);
+}
+
+static void
 paint_fake_cursor (Display *dpy, win *w)
 {
 	float scaledCursorX, scaledCursorY;
@@ -525,8 +577,10 @@ paint_fake_cursor (Display *dpy, win *w)
 	unsigned int mask_return;
 	
 	XQueryPointer(dpy, DefaultRootWindow(dpy), &window_returned,
-					&child, &root_x, &root_y, &win_x, &win_y,
-					&mask_return);
+				  &child, &root_x, &root_y, &win_x, &win_y,
+			   &mask_return);
+	
+	handle_mouse_movement( dpy, root_x, root_y );
 	
 	// Also need new texture
 	if (cursorImageDirty)
@@ -560,6 +614,12 @@ paint_fake_cursor (Display *dpy, win *w)
 	// Actual point on scaled screen where the cursor hotspot should be
 	scaledCursorX = (win_x - w->a.x) * cursorScaleRatio * globalScaleRatio + cursorOffsetX;
 	scaledCursorY = (win_y - w->a.y) * cursorScaleRatio * globalScaleRatio + cursorOffsetY;
+	
+	if ( zoomScaleRatio != 1.0 )
+	{
+		scaledCursorX += ((w->a.width / 2) - win_x) * cursorScaleRatio * globalScaleRatio;
+		scaledCursorY += ((w->a.height / 2) - win_y) * cursorScaleRatio * globalScaleRatio;
+	}
 	
 	glEnable(GL_BLEND);
 	glBindTexture(GL_TEXTURE_2D, cursorTextureName);
@@ -623,10 +683,10 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 		return;
 	
 	win *mainOverlayWindow = find_win(dpy, currentOverlayWindow);
-
+	
 	if (notificationMode && !mainOverlayWindow)
 		return;
-
+	
 	if (notificationMode)
 	{
 		sourceWidth = mainOverlayWindow->a.width;
@@ -652,6 +712,12 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 		drawXOffset = (root_width - sourceWidth * currentScaleRatio) / 2.0f;
 		drawYOffset = (root_height - sourceHeight * currentScaleRatio) / 2.0f;
 		
+		if ( zoomScaleRatio != 1.0 )
+		{
+			drawXOffset += ((sourceWidth / 2) - cursorX) * currentScaleRatio;
+			drawYOffset += ((sourceHeight / 2) - cursorY) * currentScaleRatio;
+		}
+		
 		isScaling = True;
 	}
 	
@@ -659,7 +725,7 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 		glEnable(GL_BLEND);
 	else
 		glDisable(GL_BLEND);
-
+	
 	// If scaling and blending, we need to draw our letterbox black border with
 	// the right opacity instead of relying on the clear color
 	if (isScaling && doBlend && !notificationMode)
@@ -678,7 +744,7 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 			glVertex2d (root_width, 0.0f);
 			glVertex2d (root_width, drawYOffset);
 			glVertex2d (0.0f, drawYOffset);
-
+			
 			glVertex2d (0.0f, root_height - drawYOffset);
 			glVertex2d (root_width, root_height - drawYOffset);
 			glVertex2d (root_width, root_height);
@@ -698,10 +764,10 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 			glVertex2d (root_width, root_height - drawYOffset);
 			glVertex2d (root_width - drawXOffset, root_height - drawYOffset);
 		}
-
+		
 		glEnd ();
 	}
-
+	
 	glEnable(GL_TEXTURE_2D);
 	
 	if (w->isOverlay)
@@ -716,7 +782,7 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 	if (notificationMode)
 	{
 		int xOffset = 0, yOffset = 0;
-
+		
 		width = w->a.width * currentScaleRatio;
 		height = w->a.height * currentScaleRatio;
 		
@@ -725,7 +791,7 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 			xOffset = (root_width - root_width * globalScaleRatio) / 2.0;
 			yOffset = (root_height - root_height * globalScaleRatio) / 2.0;
 		}
-
+		
 		originX = root_width - xOffset - width;
 		originY = root_height - yOffset - height;
 	}
@@ -737,7 +803,7 @@ paint_window (Display *dpy, win *w, Bool doBlend, Bool notificationMode)
 		width = sourceWidth * currentScaleRatio;
 		height = sourceHeight * currentScaleRatio;
 	}
-
+	
 	glBegin (GL_QUADS);
 	glTexCoord2d (0.0f, 0.0f);
 	glVertex2d (originX, originY);
@@ -757,14 +823,14 @@ paint_message (const char *message, int Y, float r, float g, float b)
 	GLfloat horizontalOffsets[messageLength + 1];
 	
 	horizontalOffsets[0] = 0;
-
+	
 	__pointer_to_glGetPathSpacingNV(GL_ACCUM_ADJACENT_PAIRS_NV,
 									(GLsizei)messageLength, GL_UNSIGNED_BYTE, message,
 									textPathObjects,
-									1.0, 1.0,
-									GL_TRANSLATE_X_NV,
-									&horizontalOffsets[1]);
-
+								 1.0, 1.0,
+								 GL_TRANSLATE_X_NV,
+								 &horizontalOffsets[1]);
+	
 	float messageWidth = horizontalOffsets[messageLength - 1] + textXAdvance[message[messageLength - 1]];
 	
 	glPushMatrix();
@@ -776,28 +842,28 @@ paint_message (const char *message, int Y, float r, float g, float b)
 	
 	glStencilFunc(GL_NOTEQUAL, 0, 0xFF);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
-
+	
 	__pointer_to_glStencilFillPathInstancedNV(	(GLsizei)messageLength,
-									GL_UNSIGNED_BYTE, message, textPathObjects,
-									GL_PATH_FILL_MODE_NV, ~0, /* Use all stencil bits */
-									GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
+												GL_UNSIGNED_BYTE, message, textPathObjects,
+											GL_PATH_FILL_MODE_NV, ~0, /* Use all stencil bits */
+											GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
 	
 	glColor3f(r,g,b);
 	__pointer_to_glCoverFillPathInstancedNV((GLsizei)messageLength,
 											GL_UNSIGNED_BYTE, message, textPathObjects,
-											GL_PATH_FILL_COVER_MODE_NV,
-											GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
+										 GL_PATH_FILL_COVER_MODE_NV,
+										 GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
 	
 	__pointer_to_glStencilStrokePathInstancedNV((GLsizei)messageLength,
 												GL_UNSIGNED_BYTE, message, textPathObjects,
-												1, ~0, /* Use all stencil bits */
-												GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
+											 1, ~0, /* Use all stencil bits */
+											 GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
 	glColor3f(0.0,0.0,0.0);
 	__pointer_to_glCoverStrokePathInstancedNV((GLsizei)messageLength,
-												GL_UNSIGNED_BYTE, message, textPathObjects,
-												GL_PATH_STROKE_COVER_MODE_NV,
-												GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
-
+											  GL_UNSIGNED_BYTE, message, textPathObjects,
+										   GL_PATH_STROKE_COVER_MODE_NV,
+										   GL_TRANSLATE_X_NV, &horizontalOffsets[0]);
+	
 	glDisable(GL_STENCIL_TEST);
 	
 	glPopMatrix();
@@ -869,7 +935,7 @@ paint_all (Display *dpy)
 	
 	unsigned int currentTime = get_time_in_milliseconds();
 	Bool fadingOut = ((currentTime - fadeOutStartTime) < FADE_OUT_DURATION && fadeOutWindow.id != None);
-
+	
 	w = find_win(dpy, currentFocusWindow);
 	overlay = find_win(dpy, currentOverlayWindow);
 	notification = find_win(dpy, currentNotificationWindow);
@@ -888,8 +954,8 @@ paint_all (Display *dpy)
 	// Don't pump new frames if no animation on the focus window, unless we're fading
 	if (!w->damaged && !overlayDamaged && !fadeOutWindow.id)
 		return;
-		
-
+	
+	
 	frameCounter++;
 	
 	if (frameCounter == 5)
@@ -898,7 +964,7 @@ paint_all (Display *dpy)
 		lastSampledFrameTime = currentTime;
 		frameCounter = 0;
 	}
-
+	
 	w->damaged = 0;
 	
 	ensure_win_resources(dpy, w);
@@ -911,7 +977,7 @@ paint_all (Display *dpy)
 	
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-
+	
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	// Fading out from previous window?
@@ -990,7 +1056,7 @@ paint_all (Display *dpy)
 	
 	if (drawDebugInfo)
 		paint_debug_info(dpy);
-
+	
 	glXSwapBuffers(dpy, root);
 	
 	if (glGetError() != GL_NO_ERROR)
@@ -1005,25 +1071,6 @@ paint_all (Display *dpy)
 		unredirectedWindow = currentFocusWindow;
 		teardown_win_resources(dpy, w);
 		XCompositeUnredirectWindow(dpy, unredirectedWindow, CompositeRedirectManual);
-	}
-}
-
-static void
-apply_cursor_state (Display *dpy)
-{
-	Bool newCursorVisibility = True;
-
-	if (hideCursorForScale || hideCursorForMovement)
-		newCursorVisibility = False;
-	
-	if (newCursorVisibility != cursorVisible)
-	{
-		cursorVisible = newCursorVisibility;
-		
-		if (cursorVisible)
-			XFixesShowCursor(dpy, DefaultRootWindow(dpy));
-		else
-			XFixesHideCursor(dpy, DefaultRootWindow(dpy));
 	}
 }
 
@@ -1076,7 +1123,7 @@ setup_pointer_barriers (Display *dpy)
 	
 	XQueryPointer(dpy, DefaultRootWindow(dpy), &window_returned,
 				  &child, &root_x, &root_y, &win_x, &win_y,
-				  &mask_return);
+			   &mask_return);
 	
 	if (root_x >= w->a.width || root_y >= w->a.height)
 	{
@@ -1093,6 +1140,8 @@ determine_and_apply_focus (Display *dpy)
 	
 	unsigned long maxDamageSequence = 0;
 	Bool usingOverrideRedirectWindow = False;
+	
+	unsigned int maxOpacity = 0;
 	
 	if (unredirectedWindow != None)
 	{
@@ -1128,9 +1177,10 @@ determine_and_apply_focus (Display *dpy)
 		
 		if (w->isOverlay)
 		{
-			if (w->a.width == 1920)
+			if (w->a.width == 1920 && w->opacity >= maxOpacity)
 			{
 				currentOverlayWindow = w->id;
+				maxOpacity = w->opacity;
 			}
 			else
 			{
@@ -1168,7 +1218,7 @@ determine_and_apply_focus (Display *dpy)
 	w = focus;
 	
 	set_win_hidden(dpy, w, False);
-
+	
 	if (w->a.width != root_width || w->a.height != root_height || globalScaleRatio != 1.0f)
 	{
 		float XRatio = (float)root_width / w->a.width;
@@ -1182,16 +1232,16 @@ determine_and_apply_focus (Display *dpy)
 	}
 	else
 		focusedWindowNeedsScale = False;
-
+	
 	setup_pointer_barriers(dpy);
 	
 	if (gameFocused || !gamesRunningCount && list[0].id != focus->id)
 	{
 		XRaiseWindow(dpy, focus->id);
 	}
-
+	
 	XSetInputFocus(dpy, focus->id, RevertToNone, CurrentTime);
-
+	
 	if (!focus->nudged)
 	{
 		XMoveWindow(dpy, focus->id, 1, 1);
@@ -1207,7 +1257,7 @@ determine_and_apply_focus (Display *dpy)
 	}
 	else if (!focus->isFullscreen && focus->sizeHintsSpecified &&
 		(focus->a.width != focus->requestedWidth ||
-		 focus->a.height != focus->requestedHeight))
+		focus->a.height != focus->requestedHeight))
 	{
 		XResizeWindow(dpy, focus->id, focus->requestedWidth, focus->requestedHeight);
 	}
@@ -1326,7 +1376,7 @@ map_win (Display *dpy, Window id, unsigned long sequence)
 	
 	/* This needs to be here or else we lose transparency messages */
 	XSelectInput (dpy, id, PropertyChangeMask | SubstructureNotifyMask |
-					PointerMotionMask | LeaveWindowMask);
+	PointerMotionMask | LeaveWindowMask);
 	
 	/* This needs to be here since we don't get PropertyNotify when unmapped */
 	w->opacity = get_prop (dpy, w->id, opacityAtom, TRANSLUCENT);
@@ -1336,7 +1386,7 @@ map_win (Display *dpy, Window id, unsigned long sequence)
 	w->isOverlay = get_prop (dpy, w->id, overlayAtom, 0);
 	
 	get_size_hints(dpy, w);
-
+	
 	w->damaged = 0;
 	w->damage_sequence = 0;
 	w->map_sequence = sequence;
@@ -1498,7 +1548,7 @@ configure_win (Display *dpy, XConfigureEvent *ce)
 		}
 		return;
 	}
-
+	
 	w->a.x = ce->x;
 	w->a.y = ce->y;
 	if (w->a.width != ce->width || w->a.height != ce->height)
@@ -1567,7 +1617,7 @@ destroy_win (Display *dpy, Window id, Bool gone, Bool fade)
 	if (currentNotificationWindow == id && gone)
 		currentNotificationWindow = None;
 	focusDirty = True;
-
+	
 	finish_destroy_win (dpy, id, gone);
 }
 
@@ -1581,7 +1631,7 @@ damage_win (Display *dpy, XDamageNotifyEvent *de)
 		return;
 	
 	w->validContents = True;
-
+	
 	if (w->isOverlay && !w->opacity)
 		return;
 	
@@ -1596,7 +1646,7 @@ damage_win (Display *dpy, XDamageNotifyEvent *de)
 	if (focus && focus != w && w->gameID &&
 		w->damage_sequence > focus->damage_sequence)
 		focusDirty = True;
-		
+	
 	w->damaged = 1;
 	
 	if (w->damage)
@@ -1839,7 +1889,7 @@ main (int argc, char **argv)
 		fprintf (stderr, "No XFixes extension\n");
 		exit (1);
 	}
-
+	
 	if (!register_cm(dpy))
 	{
 		exit (1);
@@ -1852,6 +1902,7 @@ main (int argc, char **argv)
 	opacityAtom = XInternAtom (dpy, OPACITY_PROP, False);
 	gamesRunningAtom = XInternAtom (dpy, GAMES_RUNNING_PROP, False);
 	screenScaleAtom = XInternAtom (dpy, SCREEN_SCALE_PROP, False);
+	screenZoomAtom = XInternAtom (dpy, SCREEN_MAGNIFICATION_PROP, False);
 	winTypeAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE", False);
 	winDesktopAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
 	winDockAtom = XInternAtom (dpy, "_NET_WM_WINDOW_TYPE_DOCK", False);
@@ -1885,7 +1936,7 @@ main (int argc, char **argv)
 	XVisualInfo *rootVisualInfo;
 	
 	XGetWindowAttributes (dpy, root, &rootAttribs);
-
+	
 	visualInfoTemplate.visualid = XVisualIDFromVisual (rootAttribs.visual);
 	
 	rootVisualInfo = XGetVisualInfo (dpy, VisualIDMask, &visualInfoTemplate, &visualInfoCount);
@@ -1894,7 +1945,7 @@ main (int argc, char **argv)
 		fprintf (stderr, "Could not get root window visual info\n");
 		exit (1);
 	}
-
+	
 	glContext = glXCreateContext(dpy, rootVisualInfo, NULL, True);
 	if (!glContext)
 	{
@@ -1949,9 +2000,9 @@ main (int argc, char **argv)
 		init_text_rendering();
 	
 	XFree(rootVisualInfo);
-
+	
 	XGrabServer (dpy);
-
+	
 	if (doRender)
 	{
 		XCompositeRedirectSubwindows (dpy, root, CompositeRedirectManual);
@@ -1980,14 +2031,17 @@ main (int argc, char **argv)
 	apply_cursor_state(dpy);
 	
 	gamesRunningCount = get_prop(dpy, root, gamesRunningAtom, 0);
-	globalScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+	overscanScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+	zoomScaleRatio = get_prop(dpy, root, screenZoomAtom, 0xFFFF) / (double)0xFFFF;
+	
+	globalScaleRatio = overscanScaleRatio * zoomScaleRatio;
 	
 	determine_and_apply_focus(dpy);
 	
 	for (;;)
 	{
 		focusDirty = False;
-
+		
 		do {
 			XNextEvent (dpy, &ev);
 			if ((ev.type & 0x7f) != KeymapNotify)
@@ -2063,6 +2117,7 @@ main (int argc, char **argv)
 					{
 						/* reset mode and redraw window */
 						win * w = find_win(dpy, ev.xproperty.window);
+						win * mainOverlayWindow = find_win(dpy, currentOverlayWindow);
 						if (w && w->isOverlay)
 						{
 							unsigned int newOpacity = get_prop(dpy, w->id, opacityAtom, TRANSLUCENT);
@@ -2083,6 +2138,20 @@ main (int argc, char **argv)
 							if (w->isOverlay)
 							{
 								set_win_hidden(dpy, w, w->opacity == TRANSLUCENT);
+							}
+							
+							unsigned int maxOpacity = 0;
+							
+							for (w = list; w; w = w->next)
+							{
+								if (w->isOverlay)
+								{
+									if (w->a.width == 1920 && w->opacity >= maxOpacity)
+									{
+										currentOverlayWindow = w->id;
+										maxOpacity = w->opacity;
+									}
+								}
 							}
 						}
 					}
@@ -2111,7 +2180,7 @@ main (int argc, char **argv)
 						{
 							w->isOverlay = get_prop(dpy, w->id, overlayAtom, 0);
 							focusDirty = True;
-
+							
 							// Overlay windows need a RGBA pixmap, so destroy the old one there
 							// It'll be reallocated as RGBA in ensure_win_resources()
 							if (w->pixmap && w->isOverlay)
@@ -2137,7 +2206,22 @@ main (int argc, char **argv)
 					}
 					if (ev.xproperty.atom == screenScaleAtom)
 					{
-						globalScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+						overscanScaleRatio = get_prop(dpy, root, screenScaleAtom, 0xFFFFFFFF) / (double)0xFFFFFFFF;
+						
+						globalScaleRatio = overscanScaleRatio * zoomScaleRatio;
+						
+						win *w;
+						
+						if (w = find_win(dpy, currentFocusWindow))
+							w->damaged = 1;
+						
+						focusDirty = True;
+					}
+					if (ev.xproperty.atom == screenZoomAtom)
+					{
+						zoomScaleRatio = get_prop(dpy, root, screenZoomAtom, 0xFFFF) / (double)0xFFFF;
+						
+						globalScaleRatio = overscanScaleRatio * zoomScaleRatio;
 						
 						win *w;
 						
@@ -2147,78 +2231,55 @@ main (int argc, char **argv)
 						focusDirty = True;
 					}
 					break;
-				case ClientMessage:
-				{
-					win * w = find_win(dpy, ev.xclient.window);
-					if (w)
+					case ClientMessage:
 					{
-						if (ev.xclient.data.l[1] == fullscreenAtom)
+						win * w = find_win(dpy, ev.xclient.window);
+						if (w)
 						{
-							w->isFullscreen = ev.xclient.data.l[0];
-							
-							focusDirty = True;
+							if (ev.xclient.data.l[1] == fullscreenAtom)
+							{
+								w->isFullscreen = ev.xclient.data.l[0];
+								
+								focusDirty = True;
+							}
 						}
+						break;
 					}
-					break;
-				}
-				case LeaveNotify:
-					if (ev.xcrossing.window == currentFocusWindow)
-					{
-						// This shouldn't happen due to our pointer barriers,
-						// but there is a known X server bug; warp to last good
-						// position.
-						XWarpPointer(dpy, None, currentFocusWindow, 0, 0, 0, 0,
-									 cursorX, cursorY);
-					}
-					break;
-				case MotionNotify:
-				{
-					win * w = find_win(dpy, ev.xmotion.window);
-					if (w && w->id == currentFocusWindow)
-					{
-						// Some stuff likes to warp in-place
-						if (cursorX == ev.xmotion.x && cursorY == ev.xmotion.y)
-							break;
-
-						cursorX = ev.xmotion.x;
-						cursorY = ev.xmotion.y;
-						
-						win *w = find_win(dpy, currentFocusWindow);
-
-						if (w && focusedWindowNeedsScale && gameFocused)
+					case LeaveNotify:
+						if (ev.xcrossing.window == currentFocusWindow)
 						{
-							w->damaged = 1;
+							// This shouldn't happen due to our pointer barriers,
+							// but there is a known X server bug; warp to last good
+							// position.
+							XWarpPointer(dpy, None, currentFocusWindow, 0, 0, 0, 0,
+										 cursorX, cursorY);
 						}
-						
-						// Ignore the first events as it's likely to be non-user-initiated warps
-						// Account for one warp from us, one warp from the app and one warp from
-						// the toolkit.
-						if (w && (w->mouseMoved++ < 3))
-							break;
-						
-						lastCursorMovedTime = get_time_in_milliseconds();
-						
-						hideCursorForMovement = False;
-						apply_cursor_state(dpy);
-					}
-					break;
-				}
-				default:
-					if (ev.type == damage_event + XDamageNotify)
+						break;
+					case MotionNotify:
 					{
-						damage_win (dpy, (XDamageNotifyEvent *) &ev);
+						win * w = find_win(dpy, ev.xmotion.window);
+						if (w && w->id == currentFocusWindow)
+						{
+							handle_mouse_movement( dpy, ev.xmotion.x, ev.xmotion.y );
+						}
+						break;
 					}
-					else if (ev.type == xfixes_event + XFixesCursorNotify)
-					{
-						cursorImageDirty = True;
-					}
-					break;
+					default:
+						if (ev.type == damage_event + XDamageNotify)
+						{
+							damage_win (dpy, (XDamageNotifyEvent *) &ev);
+						}
+						else if (ev.type == xfixes_event + XFixesCursorNotify)
+						{
+							cursorImageDirty = True;
+						}
+						break;
 			}
 		} while (QLength (dpy));
 		
 		if (focusDirty == True)
 			determine_and_apply_focus(dpy);
-
+		
 		if (doRender)
 		{
 			paint_all(dpy);
@@ -2227,6 +2288,22 @@ main (int argc, char **argv)
 			// make sure we keep pushing frames even if the app isn't updating.
 			if (fadeOutWindow.id)
 				XSendEvent(dpy, ourWindow, True, ExposureMask, &exposeEvent);
+			
+			Window window_returned, child;
+			int root_x, root_y;
+			int win_x, win_y;
+			unsigned int mask_return;
+			
+			XQueryPointer(dpy, DefaultRootWindow(dpy), &window_returned,
+						  &child, &root_x, &root_y, &win_x, &win_y,
+						&mask_return);
+			
+			if ( mask_return & ( Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask ) )
+			{
+				hideCursorForMovement = False;
+				lastCursorMovedTime = get_time_in_milliseconds();
+				apply_cursor_state(dpy);
+			}
 			
 			if (!hideCursorForMovement &&
 				(get_time_in_milliseconds() - lastCursorMovedTime) > CURSOR_HIDE_TIME)

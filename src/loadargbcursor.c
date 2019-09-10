@@ -55,10 +55,20 @@ int main(int ac, char **av)
     while (i < image->w * image->h) {
         pixel = (pixel_t *)ptr;
         
-        tmppixel.r = pixel->b;
-        tmppixel.g = pixel->g;
-        tmppixel.b = pixel->r;
-        tmppixel.a = pixel->a;
+		tmppixel.a = pixel->a;
+		
+		if ( tmppixel.a != 0 )
+		{
+			tmppixel.r = pixel->b;
+			tmppixel.g = pixel->g;
+			tmppixel.b = pixel->r;
+		}
+		else
+		{
+			tmppixel.r = 0;
+			tmppixel.g = 0;
+			tmppixel.b = 0;
+		}
         
         *pixel = tmppixel;
         
