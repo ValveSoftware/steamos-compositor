@@ -261,6 +261,7 @@ static Bool		doRender = True;
 static Bool		drawDebugInfo = False;
 static Bool		debugEvents = False;
 static Bool		allowUnredirection = False;
+static Bool		enableFocusHack = True;
 
 const int tfpAttribs[] = {
 	GLX_TEXTURE_TARGET_EXT, GLX_TEXTURE_2D_EXT,
@@ -1364,6 +1365,32 @@ get_size_hints(Display *dpy, win *w)
 	}
 }
 
+static unsigned long long int
+get_gameID (Display *dpy, win *w)
+{
+	unsigned long long int oldGameID = get_prop (dpy, w->id, gameAtom, 0);
+	unsigned long long int newGameID = oldGameID;
+
+	XClassHint hint;
+
+	if (w->isSteam || w->isOverlay)
+		return oldGameID;
+
+	if (enableFocusHack && oldGameID == 0)
+		newGameID = 1;
+
+	if (XGetClassHint (dpy, w->id, &hint) > 0)
+	{
+		if (strcmp (hint.res_name, "steam") == 0 || strcmp (hint.res_name, "Steam") == 0)
+			newGameID = oldGameID;
+
+		XFree (hint.res_name);
+		XFree (hint.res_class);
+	}
+
+	return newGameID;
+}
+
 static void
 map_win (Display *dpy, Window id, unsigned long sequence)
 {
@@ -1382,8 +1409,8 @@ map_win (Display *dpy, Window id, unsigned long sequence)
 	w->opacity = get_prop (dpy, w->id, opacityAtom, TRANSLUCENT);
 	
 	w->isSteam = get_prop (dpy, w->id, steamAtom, 0);
-	w->gameID = get_prop (dpy, w->id, gameAtom, 0);
 	w->isOverlay = get_prop (dpy, w->id, overlayAtom, 0);
+	w->gameID = get_gameID (dpy, w);
 	
 	get_size_hints(dpy, w);
 	
@@ -1728,6 +1755,7 @@ usage (char *program)
 	fprintf (stderr, "   -n\n      Normal client-side compositing with transparency support\n");
 	fprintf (stderr, "   -s\n      Draw server-side shadows with sharp edges.\n");
 	fprintf (stderr, "   -S\n      Enable synchronous operation (for debugging).\n");
+	fprintf (stderr, "   -b\n      Disable game focus hack\n");
 	exit (1);
 }
 
@@ -1817,7 +1845,7 @@ main (int argc, char **argv)
 	char	    *display = NULL;
 	int		    o;
 	
-	while ((o = getopt (argc, argv, "D:I:O:d:r:o:l:t:scnufFCaSvV")) != -1)
+	while ((o = getopt (argc, argv, "D:I:O:d:r:o:l:t:scnufFCaSvVb")) != -1)
 	{
 		switch (o) {
 			case 'd':
@@ -1837,6 +1865,9 @@ main (int argc, char **argv)
 				break;
 			case 'u':
 				allowUnredirection = True;
+				break;
+			case 'b':
+				enableFocusHack = False;
 				break;
 			default:
 				usage (argv[0]);
