@@ -1,3 +1,20 @@
+steamos-compositor (1.36) UNRELEASED; urgency=medium
+
+  * debian: Remove generated files by running dh_clean
+  * .gitignore: Add
+  * Remove generated files
+  * debian/.gitignore: Add
+  * debian: Wrap (build-)dependencies one per line
+  * debian: Use default version of automake
+  * debian: Use debhelper 10 compat level
+    - Uses dh-autoreconf by default
+  * debian: Don't pass discouraged --ignore-missing-info option to
+    dpkg-shlibdeps
+  * debian: Remove unnecessary explicit dependencies on libsdl-image1.2
+    and libudev1. ${shlibs:Depends} implies these.
+
+ -- Simon McVittie <smcv@collabora.com>  Wed, 11 Sep 2019 13:33:34 +0100
+
 steamos-compositor (1.35) brewmaster; urgency=medium
 
   * Crude workaround for Steam login issue.

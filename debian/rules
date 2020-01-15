@@ -1,6 +1,3 @@
 #!/usr/bin/make -f
 %:
 	dh $@
-
-override_dh_shlibdeps:
-	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
